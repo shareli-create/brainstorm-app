@@ -81,11 +81,9 @@ async function verifyCelebrity(name, letterPair, retries = 3) {
         
         // Vowel variations (common in transliterations)
         const vowelRules = [
-          { from: 'א', to: ['', 'א'] },  // Silent alef
-          { from: 'ו', to: ['ו', 'וו'] }, // Single/double vav
-          { from: 'י', to: ['י', 'יי'] }, // Single/double yod
-          
-          // Geresh variations (ג', ז', צ', etc.)
+          { from: 'א', to: ['', 'א'] },
+          { from: 'ו', to: ['ו', 'וו'] },
+          { from: 'י', to: ['י', 'יי'] },
           { from: "ג'", to: ["ג'", 'ג׳', 'ג`', 'ג'] },
           { from: 'ג׳', to: ["ג'", 'ג׳', 'ג`', 'ג'] },
           { from: "ז'", to: ["ז'", 'ז׳', 'ז`', 'ז'] },
@@ -96,19 +94,14 @@ async function verifyCelebrity(name, letterPair, retries = 3) {
           { from: 'צ׳', to: ["צ'", 'צ׳', 'צ`', 'צ'] },
           { from: "ת'", to: ["ת'", 'ת׳', 'ת`', 'ת'] },
           { from: 'ת׳', to: ["ת'", 'ת׳', 'ת`', 'ת'] },
-          
-          // Common vowel letter combinations
           { from: 'יי', to: ['י', 'יי'] },
           { from: 'וו', to: ['ו', 'וו'] },
-          
-          // Long/short vowels
           { from: 'אַ', to: ['א', 'אַ'] },
           { from: 'אָ', to: ['א', 'אָ', 'או'] },
           { from: 'או', to: ['או', 'אָ', 'ו', 'או'] },
           { from: 'יי', to: ['י', 'יי', 'אי'] },
         ];
         
-        // Apply each rule
         const currentVariants = Array.from(variants);
         currentVariants.forEach(variant => {
           vowelRules.forEach(rule => {
@@ -126,34 +119,28 @@ async function verifyCelebrity(name, letterPair, retries = 3) {
         return Array.from(variants);
       };
       
-      // Generate variations for first name
       const firstVariants = applyTransliterationVariations(first);
-      
-      // Generate variations for last name
       const lastVariants = applyTransliterationVariations(last);
       
-      // Combine all variations
       firstVariants.forEach(f => {
         lastVariants.forEach(l => {
           variations.add(`${f} ${l}`);
         });
       });
       
-      // Limit to reasonable number to avoid too many searches
       const variationsArray = Array.from(variations);
-      return variationsArray.slice(0, 15); // Max 15 variations
+      return variationsArray.slice(0, 15);
     };
     
     const nameVariations = createNameVariations(firstName, lastName);
     
-    // Try multiple search strategies for each name variation
     const searchQueries = [];
     nameVariations.forEach(variant => {
-      searchQueries.push(variant); // Full name
-      searchQueries.push(`"${variant}"`); // Exact phrase
+      searchQueries.push(variant);
+      searchQueries.push(`"${variant}"`);
     });
-    searchQueries.push(name); // Original
-    searchQueries.push(`"${name}"`); // Original exact
+    searchQueries.push(name);
+    searchQueries.push(`"${name}"`);
     
     for (const query of searchQueries) {
       const searchUrl = `https://he.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*&srlimit=5`;
@@ -163,10 +150,9 @@ async function verifyCelebrity(name, letterPair, retries = 3) {
         const data = await response.json();
         
         if (!data.query || !data.query.search || data.query.search.length === 0) {
-          continue; // Try next search query
+          continue;
         }
 
-        // Check all results, not just the first one
         for (const result of data.query.search) {
           const title = result.title;
           const snippet = result.snippet.replace(/<[^>]*>/g, '');
@@ -176,11 +162,9 @@ async function verifyCelebrity(name, letterPair, retries = 3) {
           const firstNameLower = firstName.toLowerCase();
           const lastNameLower = lastName.toLowerCase();
           
-          // More flexible matching - check if title contains both first and last names (or their variants)
           let titleContainsFirstName = titleLower.includes(firstNameLower);
           let titleContainsLastName = titleLower.includes(lastNameLower);
           
-          // Check all first name variations
           nameVariations.forEach(variant => {
             const parts = variant.toLowerCase().split(/\s+/);
             if (titleLower.includes(parts[0])) titleContainsFirstName = true;
@@ -192,7 +176,6 @@ async function verifyCelebrity(name, letterPair, retries = 3) {
           const closeMatch = titleLower.includes(nameLower) || nameLower.includes(titleLower);
           
           if (exactMatch || titleContainsBoth || closeMatch) {
-            // Check if it's about a person - improved detection
             const personIndicators = [
               '(נולד', '(נפטר', '(נ.', '(נולדה', '(נפטרה',
               'הייתה', 'היה', 'הייתה', 'היתה',
@@ -209,7 +192,6 @@ async function verifyCelebrity(name, letterPair, retries = 3) {
             
             const hasYearPattern = snippet.match(/\b(19|20)\d{2}\b/) !== null;
             
-            // If title contains both first and last name AND has person indicators
             if (titleContainsBoth && (hasPersonIndicator || hasYearPattern)) {
               return {
                 valid: true,
@@ -219,7 +201,6 @@ async function verifyCelebrity(name, letterPair, retries = 3) {
               };
             }
             
-            // If exact match and has any person indicator
             if (exactMatch && hasPersonIndicator) {
               return {
                 valid: true,
@@ -232,17 +213,12 @@ async function verifyCelebrity(name, letterPair, retries = 3) {
         }
       } catch (fetchError) {
         console.error(`Search failed for query "${query}":`, fetchError);
-        continue; // Try next search query
+        continue;
       }
       
-      // Small delay between different search strategies
       await new Promise(resolve => setTimeout(resolve, 150));
     }
     
-    // If we got here, no valid match was found
-    // BUT - check if there's a PARTIAL match that needs manual review
-    
-    // Search one more time for partial matches
     const partialSearchUrl = `https://he.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(name)}&format=json&origin=*&srlimit=10`;
     
     try {
@@ -257,17 +233,15 @@ async function verifyCelebrity(name, letterPair, retries = 3) {
           const firstNameLower = firstName.toLowerCase();
           const lastNameLower = lastName.toLowerCase();
           
-          // Check for partial match
           const hasFirstName = titleLower.includes(firstNameLower);
           const hasLastName = titleLower.includes(lastNameLower);
           const hasPersonIndicator = ['נולד', 'נפטר', 'הייתה', 'היה', 'זמר', 'שחקן', 'רב', 'פוליטיקאי', 'ספורטאי', 'סופר', 'שר', 'נשיא', 'פרופסור', 'יזם', 'CEO'].some(indicator => 
             snippet.includes(indicator) || title.includes(indicator)
           );
           
-          // If we found at least one name part AND it's a person
           if ((hasFirstName || hasLastName) && hasPersonIndicator) {
             return {
-              valid: 'manual_review', // Special flag for manual review
+              valid: 'manual_review',
               match: title,
               reason: 'דורש בדיקת מרצה',
               description: `נמצאה התאמה חלקית: "${title}". ${snippet.substring(0, 150)}`
@@ -287,7 +261,6 @@ async function verifyCelebrity(name, letterPair, retries = 3) {
     };
     
   } catch (error) {
-    // Retry logic on error
     if (retries > 0) {
       console.log(`Retrying ${name}... (${retries} retries left)`);
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -308,7 +281,6 @@ async function verifyCelebritiesForPair(names, letterPair) {
   const results = {};
   for (const name of names) {
     if (name && name.trim()) {
-      // Quick validation before even trying Wikipedia
       const nameParts = name.trim().split(/\s+/);
       if (nameParts.length < 2) {
         results[name] = {
@@ -325,7 +297,6 @@ async function verifyCelebritiesForPair(names, letterPair) {
       const firstLetter = letterPair[0];
       const lastLetter = letterPair[1];
       
-      // Skip if letters don't match - don't waste time on Wikipedia
       if (firstName[0] !== firstLetter || lastName[0] !== lastLetter) {
         results[name] = {
           valid: false,
@@ -339,7 +310,6 @@ async function verifyCelebritiesForPair(names, letterPair) {
       try {
         console.log(`Verifying: ${name}`);
         results[name] = await verifyCelebrity(name.trim(), letterPair);
-        // Longer delay between requests to avoid rate limiting
         await new Promise(resolve => setTimeout(resolve, 600));
       } catch (error) {
         console.error(`Error verifying ${name}:`, error);
@@ -357,8 +327,11 @@ async function verifyCelebritiesForPair(names, letterPair) {
 
 // REST API endpoints
 
+// ✅ FIXED: Integer ID instead of float
 app.post('/api/students/register', (req, res) => {
   const { name, skipDuplicateCheck } = req.body;
+  
+  console.log('📝 Registration request:', name);
   
   if (!name || !name.trim()) {
     return res.status(400).json({ error: 'Name is required' });
@@ -369,12 +342,15 @@ app.post('/api/students/register', (req, res) => {
   }
   
   const student = {
-    id: Date.now() + Math.random(),
+    id: students.length > 0 ? Math.max(...students.map(s => s.id)) + 1 : 1, // ✅ INTEGER ID
     name: name.trim(),
     registeredAt: new Date()
   };
   
   students.push(student);
+  
+  console.log('✅ Student registered:', student);
+  
   io.emit('studentsUpdated', students);
   res.json(student);
 });
@@ -547,7 +523,6 @@ app.get('/api/results', async (req, res) => {
   }
 });
 
-// Manual verification by instructor
 app.post('/api/verify-name-manual', (req, res) => {
   const { name, isValid } = req.body;
   
@@ -566,7 +541,6 @@ app.post('/api/verify-name-manual', (req, res) => {
   res.json({ success: true, verification: manualVerifications[name] });
 });
 
-// Reset manual verification
 app.post('/api/verify-name-manual/reset', (req, res) => {
   const { name } = req.body;
   
@@ -593,9 +567,8 @@ app.post('/api/reset', (req, res) => {
   res.json({ success: true });
 });
 
-// Debug endpoint - test a list of names
 app.post('/api/test-names', async (req, res) => {
-  const { names } = req.body; // Array of { name, pair }
+  const { names } = req.body;
   
   if (!names || !Array.isArray(names)) {
     return res.status(400).json({ error: 'Invalid input' });
@@ -616,7 +589,6 @@ app.post('/api/test-names', async (req, res) => {
   res.json(results);
 });
 
-// Calculate results for ALL sessions combined
 async function calculateAllResults() {
   const groupResults = [];
   const summary = {
@@ -645,7 +617,6 @@ async function calculateAllResults() {
         }
       }
       
-      // Apply manual verifications
       uniqueNames.forEach(name => {
         if (manualVerifications[name]) {
           verificationResults[name] = manualVerifications[name];
@@ -721,7 +692,6 @@ async function calculateAllResults() {
         }
       }
       
-      // Apply manual verifications
       uniqueNames.forEach(name => {
         if (manualVerifications[name]) {
           verificationResults[name] = manualVerifications[name];
@@ -734,7 +704,6 @@ async function calculateAllResults() {
         }
       });
       
-      // Calculate verified count per member
       group.members.forEach(member => {
         const memberNames = memberDetailedAnswers[member.name] || [];
         const uniqueMemberNames = [...new Set(memberNames)];
@@ -782,7 +751,6 @@ async function calculateAllResults() {
   return { groupResults, summary };
 }
 
-// Socket.io connection handling
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
   
@@ -799,8 +767,10 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+const HOST = process.env.HOST || '0.0.0.0';
+
+server.listen(PORT, HOST, () => {
+  console.log(`Server running on http://${HOST}:${PORT}`);
   console.log(`Student registration: http://localhost:${PORT}/register.html`);
   console.log(`Instructor interface: http://localhost:${PORT}/instructor.html`);
   console.log(`Student interface: http://localhost:${PORT}/student.html`);
