@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ממשק מרצה - תרגיל סיעור מוחות</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto p-6 max-w-7xl">
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+            <h1 class="text-3xl font-bold text-indigo-900">ממשק מרצה - תרגיל סיעור מוחות</h1>
+        </div>
+
+        <div id="setupView" class="space-y-6">
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-gray-800">תלמידים רשומים</h2>
+                    <div class="flex gap-2">
+                        <button onclick="addDemoStudents()" class="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 text-sm">
+                            🧪 הוסף 20 תלמידים לדוגמה
+                        </button>
+                        <a href="register.html" target="_blank" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
+                            🔗 פתח דף רישום
+                        </a>
+                    </div>
+                </div>
+                <div id="studentsList" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4"></div>
+                <div class="text-gray-600">סך הכל: <span id="studentCount">0</span> תלמידים</div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">יצירת קבוצות</h2>
+                <div class="flex gap-3 mb-4">
+                    <button onclick="createGroup('regular')" class="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700">
+                        צור קבוצה רגילה
+                    </button>
+                    <button onclick="createGroup('nominal')" class="flex-1 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700">
+                        צור קבוצה נומינלית
+                    </button>
+                </div>
+                <div id="groupsList" class="space-y-3"></div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">הפעלת קבוצות</h2>
+                
+                <div class="bg-purple-50 border-2 border-purple-300 rounded-lg p-4 mb-4">
+                    <div class="font-bold text-purple-900 mb-2">🧪 מצב בדיקה</div>
+                    <button onclick="fillDemoAnswers()" class="w-full bg-purple-600 text-white px-4 py-3 rounded-lg hover:bg-purple-700 font-semibold mb-3">
+                        מלא תשובות לדוגמה לכל הקבוצות
+                    </button>
+                    <button onclick="completeAllNow()" class="w-full bg-indigo-600 text-white px-4 py-3 rounded-lg hover:bg-indigo-700 font-semibold mb-3">
+                        📊 בדוק תשובות והצג תוצאות
+                    </button>
+                    <button onclick="testNamesList()" class="w-full bg-orange-600 text-white px-4 py-3 rounded-lg hover:bg-orange-700 font-semibold">
+                        🔍 בדוק רשימת שמות (Debug)
+                    </button>
+                    <p class="text-sm text-purple-700 mt-2">כלי בדיקה עבור המרצה</p>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block mb-2 font-semibold">משך הזמן (דקות):</label>
+                    <input type="number" id="durationInput" value="10" min="1" class="w-32 p-3 border rounded-lg"/>
+                </div>
+                
+                <div class="space-y-3">
+                    <button onclick="startAllGroups()" class="w-full bg-green-600 text-white px-6 py-4 rounded-lg hover:bg-green-700 text-lg font-bold">
+                        🚀 התחל את כל הקבוצות יחד
+                    </button>
+                    
+                    <div class="text-center text-gray-600 font-semibold">או</div>
+                    
+                    <div id="individualGroupButtons" class="space-y-2"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="monitorView" class="hidden">
+            <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+                <h2 class="text-2xl font-bold mb-4">ניטור קבוצות פעילות</h2>
+                <div id="activeGroupsMonitor" class="space-y-4"></div>
+                
+                <button onclick="completeAll()" class="w-full mt-6 bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 font-bold">
+                    📊 סיים והצג תוצאות כוללות
+                </button>
+            </div>
+        </div>
+
+        <div id="resultsView" class="hidden">
+            <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+                <h2 class="text-3xl font-bold mb-6 text-gray-800">📊 תוצאות התרגיל</h2>
+                
+                <div id="summarySection" class="mb-8"></div>
+                
+                <div class="mb-8">
+                    <canvas id="resultsChart" class="max-w-3xl mx-auto"></canvas>
+                </div>
+                
+                <h3 class="text-2xl font-bold mb-4">תוצאות מפורטות לפי קבוצה</h3>
+                <div id="resultsContainer" class="space-y-6"></div>
+                
+                <button onclick="resetToSetup()" class="w-full mt-6 bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700">
+                    התחל תרגיל חדש (שמור תלמידים וקבוצות)
+                </button>
+                
+                <button onclick="fullReset()" class="w-full mt-3 bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700">
+                    🗑️ איפוס מלא (מחק הכל)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+       const API_URL = window.location.origin;
+        const socket = io(API_URL);
+
+        let students = [];
+        let groups = [];
+        let activeSessions = [];
+        let timerIntervals = {};
+
+        socket.on('initialState', (state) => {
+            console.log('Received initialState:', state);
+            students = state.students || [];
+            groups = state.groups || [];
+            activeSessions = state.activeSessions || [];
+            renderStudents();
+            renderGroups();
+            renderIndividualGroupButtons();
+            if (activeSessions.some(s => !s.completed)) {
+                showMonitorView();
+            }
+        });
+
+        socket.on('studentsUpdated', (updatedStudents) => {
+            students = updatedStudents;
+            renderStudents();
+        });
+
+        socket.on('groupsUpdated', (updatedGroups) => {
+            groups = updatedGroups;
+            renderGroups();
+            renderIndividualGroupButtons();
+        });
+
+        socket.on('sessionStarted', (session) => {
+            activeSessions.push(session);
+            showMonitorView();
+            startSessionTimer(session);
+        });
+
+        socket.on('sessionEnded', (data) => {
+            const session = activeSessions.find(s => s.id === data.sessionId);
+            if (session) {
+                session.completed = true;
+                stopSessionTimer(session.id);
+                renderActiveGroups();
+            }
+        });
+
+        socket.on('allResultsReady', (results) => {
+            showResultsView();
+            renderResults(results);
+        });
+
+        socket.on('systemReset', () => {
+            location.reload();
+        });
+
+        socket.on('manualVerificationUpdated', async (data) => {
+            // Refresh results to show updated verification
+            await refreshResults();
+        });
+
+        async function addDemoStudents() {
+            const demoNames = [
+                'אבי כהן', 'בני לוי', 'גלי מזרחי', 'דני אברהם',
+                'הדר יוסף', 'ונוס הוד', 'זוהר משה', 'חני שרה',
+                'טלי יעקב', 'יעל רחל', 'כרמל אהרון', 'לירון מריה',
+                'מיכל שמעון', 'נועה לאה', 'סתיו ראובן', 'עדי שמחה',
+                'פנינה גד', 'צביה אשר', 'קרן נפתלי', 'רונית דן'
+            ];
+
+            if (students.length > 0) {
+                if (!confirm('יש כבר תלמידים רשומים. להוסיף עוד 20 תלמידים לדוגמה?')) {
+                    return;
+                }
+            }
+
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = 'מוסיף תלמידים...';
+
+            for (const name of demoNames) {
+                try {
+                    await fetch(`${API_URL}/api/students/register`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, skipDuplicateCheck: true })
+                    });
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                } catch (error) {
+                    console.error(`Error adding ${name}:`, error);
+                }
+            }
+
+            btn.disabled = false;
+            btn.textContent = '🧪 הוסף 20 תלמידים לדוגמה';
+            alert('20 תלמידים נוספו בהצלחה!');
+        }
+
+        async function fillDemoAnswers() {
+            if (groups.length === 0) {
+                alert('אין קבוצות! צור קבוצות קודם.');
+                return;
+            }
+
+            if (!confirm('זה ימלא תשובות אוטומטיות לכל הקבוצות. להמשיך?')) {
+                return;
+            }
+
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = 'ממלא תשובות...';
+
+            const demoAnswersByPair = {
+                'צנ': ['צבי נשרי', 'ציפי נבון'],
+                'תד': ['תמר הוד', 'תום הוד'],
+                'קכ': ['קארין כהן', 'קרן כץ'],
+                'עג': ['עמוס גילן', 'עדי גינזבורג'],
+                'יח': ['יהודה חיון', 'יעל חסון'],
+                'לט': ['לירון טבת', 'לאה טל'],
+                'מץ': ['משה צור', 'מיכל צפון'],
+                'רס': ['רון סער', 'רונית סלע'],
+                'סו': ['סיגל ויצמן', 'סמי ועקנין'],
+                'טר': ['טל רז', 'טלי רביב']
+            };
+
+            for (const group of groups) {
+                if (group.type === 'regular') {
+                    const firstMember = group.members[0];
+                    
+                    const answers = {};
+                    Object.keys(demoAnswersByPair).forEach(pair => {
+                        const numNames = Math.random() > 0.5 ? 2 : 1;
+                        answers[pair] = demoAnswersByPair[pair].slice(0, numNames);
+                    });
+
+                    try {
+                        await fetch(`${API_URL}/api/submissions`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                studentId: firstMember.id,
+                                groupId: group.id,
+                                answers: answers
+                            })
+                        });
+                    } catch (error) {
+                        console.error('Error submitting for regular group:', error);
+                    }
+                } else {
+                    for (const member of group.members) {
+                        const answers = {};
+                        Object.keys(demoAnswersByPair).forEach(pair => {
+                            const numNames = Math.floor(Math.random() * 3);
+                            answers[pair] = demoAnswersByPair[pair].slice(0, numNames);
+                        });
+
+                        try {
+                            await fetch(`${API_URL}/api/submissions`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    studentId: member.id,
+                                    groupId: null,
+                                    answers: answers
+                                })
+                            });
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                        } catch (error) {
+                            console.error(`Error submitting for ${member.name}:`, error);
+                        }
+                    }
+                }
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'מלא תשובות לדוגמה לכל הקבוצות';
+            alert('תשובות נוספו בהצלחה! עכשיו תוכל ללחוץ על "בדוק תשובות והצג תוצאות"');
+        }
+
+        async function createGroup(type) {
+            const availableStudents = students.filter(s => 
+                !groups.some(g => g.members.some(m => m.id === s.id))
+            );
+
+            if (availableStudents.length < 4) {
+                alert('צריך לפחות 4 תלמידים זמינים');
+                return;
+            }
+
+            const memberIds = availableStudents.slice(0, 4).map(s => s.id);
+            await fetch(`${API_URL}/api/groups`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type, memberIds })
+            });
+        }
+
+        async function deleteGroup(id) {
+            await fetch(`${API_URL}/api/groups/${id}`, { method: 'DELETE' });
+        }
+
+        async function startAllGroups() {
+            if (groups.length === 0) {
+                alert('אין קבוצות להפעלה');
+                return;
+            }
+            const duration = parseInt(document.getElementById('durationInput').value) * 60;
+            await fetch(`${API_URL}/api/session/start`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ duration, groupIds: groups.map(g => g.id) })
+            });
+        }
+
+        async function startGroup(groupId) {
+            const duration = parseInt(document.getElementById('durationInput').value) * 60;
+            await fetch(`${API_URL}/api/session/start`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ duration, groupIds: [groupId] })
+            });
+        }
+
+        async function completeAll() {
+            const loading = document.createElement('div');
+            loading.id = 'loadingOverlay';
+            loading.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            loading.innerHTML =
+                '<div class="bg-white rounded-xl p-8 text-center max-w-md">' +
+                '<div class="text-4xl mb-4">⏳</div>' +
+                '<div class="text-xl font-bold mb-2">בודק שמות מפורסמים...</div>' +
+                '<div class="text-gray-600 mb-4">זה יכול לקחת 1-2 דקות</div>' +
+                '<div class="text-sm text-gray-500">אנא המתן ואל תסגור את החלון</div>' +
+                '<div class="mt-4"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div></div>' +
+                '</div>';
+            document.body.appendChild(loading);
+
+            try {
+                const response = await fetch(`${API_URL}/api/sessions/complete-all`, { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Server error');
+                }
+            } catch (error) {
+                console.error('Error completing sessions:', error);
+                const loadingEl = document.getElementById('loadingOverlay');
+                if (loadingEl) loadingEl.remove();
+                alert('שגיאה בסיום התרגיל. נסה שוב.');
+            }
+        }
+
+        async function completeAllNow() {
+            if (!confirm('האם אתה בטוח שברצונך לבדוק את כל התשובות ולהציג תוצאות?')) {
+                return;
+            }
+            await completeAll();
+        }
+
+        async function testNamesList() {
+            // Implementation...
+        }
+
+        function startSessionTimer(session) {
+            renderActiveGroups();
+            timerIntervals[session.id] = setInterval(() => {
+                const now = Date.now();
+                const remaining = Math.max(0, Math.floor((session.endTime - now) / 1000));
+                
+                if (remaining === 0) {
+                    stopSessionTimer(session.id);
+                    endSession(session.id);
+                } else {
+                    renderActiveGroups();
+                }
+            }, 1000);
+        }
+
+        function stopSessionTimer(sessionId) {
+            if (timerIntervals[sessionId]) {
+                clearInterval(timerIntervals[sessionId]);
+                delete timerIntervals[sessionId];
+            }
+        }
+
+        async function endSession(sessionId) {
+            await fetch(`${API_URL}/api/session/end/${sessionId}`, { method: 'POST' });
+        }
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return mins + ':' + secs.toString().padStart(2, '0');
+        }
+
+        function renderStudents() {
+            const container = document.getElementById('studentsList');
+            if (!container) return;
+            
+            container.innerHTML = students.map(s =>
+                '<div class="bg-gray-100 p-3 rounded-lg text-center font-semibold">' + s.name + '</div>'
+            ).join('');
+            document.getElementById('studentCount').textContent = students.length;
+        }
+
+        function renderGroups() {
+            const container = document.getElementById('groupsList');
+            if (!container) return;
+            
+            container.innerHTML = groups.map(g =>
+                '<div class="border-2 rounded-lg p-4 ' + (g.type === 'regular' ? 'border-blue-300 bg-blue-50' : 'border-purple-300 bg-purple-50') + '">' +
+                '<div class="flex justify-between items-start mb-2">' +
+                '<div>' +
+                '<h3 class="font-bold text-lg">' + g.name + '</h3>' +
+                '<span class="text-sm px-3 py-1 rounded-full font-semibold ' + (g.type === 'regular' ? 'bg-blue-200 text-blue-900' : 'bg-purple-200 text-purple-900') + '">' +
+                (g.type === 'regular' ? '👥 קבוצה רגילה' : '👤 קבוצה נומינלית') +
+                '</span>' +
+                '</div>' +
+                '<button onclick="deleteGroup(' + g.id + ')" class="text-red-500 hover:text-red-700 text-xl">🗑️</button>' +
+                '</div>' +
+                '<div class="flex flex-wrap gap-2 mt-3">' +
+                g.members.map(m =>
+                    '<span class="bg-white px-3 py-1 rounded-full text-sm font-semibold border-2 ' +
+                    (g.type === 'regular' ? 'border-blue-300' : 'border-purple-300') + '">' + m.name + '</span>'
+                ).join('') +
+                '</div>' +
+                '</div>'
+            ).join('');
+        }
+
+        function renderIndividualGroupButtons() {
+            const container = document.getElementById('individualGroupButtons');
+            if (!container) return;
+            
+            if (groups.length === 0) {
+                container.innerHTML = '<div class="text-gray-500 text-center py-4">אין קבוצות עדיין</div>';
+                return;
+            }
+            container.innerHTML = '<div class="text-sm text-gray-600 font-semibold mb-2">הפעל קבוצה ספציפית:</div>' +
+                groups.map(g =>
+                    '<button onclick="startGroup(' + g.id + ')" class="w-full ' +
+                    (g.type === 'regular' ? 'bg-blue-500' : 'bg-purple-500') +
+                    ' text-white px-4 py-2 rounded-lg hover:opacity-80 text-sm">▶ ' + g.name + '</button>'
+                ).join('');
+        }
+
+        function renderActiveGroups() {
+            const container = document.getElementById('activeGroupsMonitor');
+            if (!container) return;
+            
+            const active = activeSessions.filter(s => !s.completed);
+            
+            if (active.length === 0) {
+                container.innerHTML = '<div class="text-gray-500 text-center py-8">אין סשנים פעילים כרגע</div>';
+                return;
+            }
+            
+            container.innerHTML = active.map(session => {
+                const now = Date.now();
+                const remaining = Math.max(0, Math.floor((session.endTime - now) / 1000));
+                
+                return '<div class="border-2 border-indigo-300 rounded-lg p-4 bg-indigo-50">' +
+                    '<div class="flex justify-between items-center mb-3">' +
+                    '<h3 class="text-xl font-bold">סשן ' + session.id + '</h3>' +
+                    '<div class="text-3xl font-bold text-indigo-900">' + formatTime(remaining) + '</div>' +
+                    '</div>' +
+                    '<div class="grid grid-cols-2 gap-2">' +
+                    session.groups.map(g =>
+                        '<div class="bg-white p-2 rounded border">' +
+                        '<div class="font-semibold text-sm">' + g.name + '</div>' +
+                        '<div class="text-xs text-gray-600">' + g.members.length + ' חברים</div>' +
+                        '</div>'
+                    ).join('') +
+                    '</div>' +
+                    '</div>';
+            }).join('');
+        }
+
+        async function renderResults(data) {
+            if (!data) {
+                const response = await fetch(`${API_URL}/api/results`);
+                data = await response.json();
+            }
+
+            const groupResults = data.groupResults;
+            const summary = data.summary;
+
+            // Collect ALL unique names
+            const allUniqueNames = new Set();
+            const globalVerificationResults = {};
+            
+            groupResults.forEach(r => {
+                r.names.forEach(name => {
+                    allUniqueNames.add(name);
+                    if (r.verificationResults[name]) {
+                        globalVerificationResults[name] = r.verificationResults[name];
+                    }
+                });
+            });
+            
+            // Count names that need review
+            let needsReviewCount = 0;
+            Array.from(allUniqueNames).forEach(name => {
+                const verification = globalVerificationResults[name];
+                if (verification?.valid === 'manual_review' && !verification?.manuallyVerified) {
+                    needsReviewCount++;
+                }
+            });
+            
+            // Create global names section
+            let globalNamesSection = '';
+            if (allUniqueNames.size > 0) {
+                globalNamesSection = '<div class="bg-yellow-50 border-2 border-yellow-400 rounded-xl p-6 mb-6">' +
+                    '<h3 class="text-2xl font-bold mb-4 text-center">🔍 כל השמות שנמצאו - אימות גלובלי</h3>' +
+                    (needsReviewCount > 0 ? 
+                        '<div class="bg-orange-100 border border-orange-400 rounded-lg p-3 mb-4 text-center">' +
+                        '<span class="text-lg font-bold text-orange-900">⚠️ יש ' + needsReviewCount + ' שמות הדורשים בדיקת מרצה</span>' +
+                        '</div>' 
+                    : '') +
+                    '<div class="text-sm text-gray-700 mb-3 text-center font-bold bg-blue-100 p-2 rounded">אימות ידני כאן חל על <strong>כל הקבוצות</strong> - שם שאושר/נדחה כאן ישתנה בכל מקום</div>' +
+                    '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">' +
+                    Array.from(allUniqueNames).sort().map(name => {
+                        const verification = globalVerificationResults[name];
+                        const isValid = verification?.valid === true;
+                        const needsReview = verification?.valid === 'manual_review';
+                        const manuallyVerified = verification?.manuallyVerified;
+                        const borderColor = isValid ? 'border-green-400' : needsReview ? 'border-orange-400' : 'border-red-400';
+                        const bgColor = isValid ? 'bg-green-50' : needsReview ? 'bg-orange-50' : 'bg-red-50';
+                        const icon = isValid ? '✔' : needsReview ? '⚠' : '✗';
+                        const iconColor = isValid ? 'text-green-600' : needsReview ? 'text-orange-600' : 'text-red-600';
+                        
+                        return '<div class="p-3 rounded-lg border-2 ' + borderColor + ' ' + bgColor + '">' +
+                            '<div class="flex items-start gap-2">' +
+                            '<span class="text-xl ' + iconColor + '">' + icon + '</span>' +
+                            '<div class="flex-1 min-w-0">' +
+                            '<div class="font-bold ' + (isValid ? 'text-green-900' : needsReview ? 'text-orange-900' : 'text-red-900') + ' break-words">' + name + '</div>' +
+                            (verification?.description ? '<div class="text-xs mt-1 text-gray-600 line-clamp-2">' + verification.description.substring(0, 80) + '...</div>' : '') +
+                            (!isValid && !needsReview && verification?.reason ? '<div class="text-xs mt-1 text-red-600 font-semibold">סיבה: ' + verification.reason + '</div>' : '') +
+                            (needsReview && !manuallyVerified ? '<div class="text-xs mt-1 text-orange-600 font-semibold">⚠ דורש החלטה</div>' : '') +
+                            (manuallyVerified ? '<div class="text-xs mt-1 text-blue-600 font-semibold">👨‍🏫 ' + verification.reason + '</div>' : '') +
+                            '</div>' +
+                            '<div class="flex flex-col gap-1 flex-shrink-0">' +
+                            (isValid && !manuallyVerified ? 
+                                '<button onclick="verifyNameManually(\'' + name.replace(/'/g, "\\'") + '\', false)" class="bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700" title="דחה שם זה">❌</button>'
+                            : '') +
+                            (!isValid && !manuallyVerified ? 
+                                '<button onclick="verifyNameManually(\'' + name.replace(/'/g, "\\'") + '\', true)" class="bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700" title="אשר שם זה">✅</button>'
+                            : '') +
+                            (needsReview && !manuallyVerified ? 
+                                '<button onclick="verifyNameManually(\'' + name.replace(/'/g, "\\'") + '\', true)" class="bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700 mb-1">✅</button>' +
+                                '<button onclick="verifyNameManually(\'' + name.replace(/'/g, "\\'") + '\', false)" class="bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700">❌</button>'
+                            : '') +
+                            (manuallyVerified ? 
+                                '<button onclick="resetManualVerification(\'' + name.replace(/'/g, "\\'") + '\')" class="bg-gray-500 text-white px-2 py-1 rounded text-xs hover:bg-gray-600" title="בטל החלטה ידנית">🔄</button>'
+                            : '') +
+                            '</div>' +
+                            '</div></div>';
+                    }).join('') +
+                    '</div>' +
+                    '</div>';
+            }
+
+            const summaryHTML = globalNamesSection +
+                '<div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 border-2 border-indigo-300">' +
+                '<h3 class="text-2xl font-bold mb-4 text-center">סיכום כללי</h3>' +
+                '<div class="overflow-x-auto">' +
+                '<table class="w-full text-center">' +
+                '<thead><tr class="border-b-2 border-gray-300">' +
+                '<th class="p-3 font-bold">סוג קבוצה</th>' +
+                '<th class="p-3 font-bold">מספר קבוצות</th>' +
+                '<th class="p-3 font-bold">סה"כ חברים</th>' +
+                '<th class="p-3 font-bold">שמות מאומתים</th>' +
+                '<th class="p-3 font-bold">ממוצע לחבר</th>' +
+                '<th class="p-3 font-bold">ממוצע לקבוצה</th>' +
+                '</tr></thead>' +
+                '<tbody>' +
+                '<tr class="bg-blue-100 border-b border-gray-200">' +
+                '<td class="p-3 font-bold text-blue-900">👥 קבוצות רגילות</td>' +
+                '<td class="p-3">' + summary.regular.groupCount + '</td>' +
+                '<td class="p-3">' + summary.regular.memberCount + '</td>' +
+                '<td class="p-3 text-2xl font-bold text-green-700">' + summary.regular.verifiedNames + '</td>' +
+                '<td class="p-3 text-xl font-bold">' + (summary.regular.avgPerMember || 0).toFixed(1) + '</td>' +
+                '<td class="p-3 text-xl font-bold">' + (summary.regular.avgPerGroup || 0).toFixed(1) + '</td>' +
+                '</tr>' +
+                '<tr class="bg-purple-100">' +
+                '<td class="p-3 font-bold text-purple-900">👤 קבוצות נומינליות</td>' +
+                '<td class="p-3">' + summary.nominal.groupCount + '</td>' +
+                '<td class="p-3">' + summary.nominal.memberCount + '</td>' +
+                '<td class="p-3 text-2xl font-bold text-green-700">' + summary.nominal.verifiedNames + '</td>' +
+                '<td class="p-3 text-xl font-bold">' + (summary.nominal.avgPerMember || 0).toFixed(1) + '</td>' +
+                '<td class="p-3 text-xl font-bold">' + (summary.nominal.avgPerGroup || 0).toFixed(1) + '</td>' +
+                '</tr>' +
+                '</tbody></table>' +
+                '</div>' +
+                '<div class="mt-4 text-sm text-gray-600 text-center">' +
+                '* שמות מאומתים כוללים גם שמות שאושרו ידנית על ידי המרצה' +
+                '</div>' +
+                '</div>';
+            document.getElementById('summarySection').innerHTML = summaryHTML;
+
+            renderChart(summary);
+
+            const container = document.getElementById('resultsContainer');
+            
+            container.innerHTML = groupResults.map(r =>
+                '<div class="border-2 rounded-xl p-6 ' + (r.type === 'regular' ? 'border-blue-300 bg-blue-50' : 'border-purple-300 bg-purple-50') + '">' +
+                '<div class="flex justify-between items-start mb-4">' +
+                '<div>' +
+                '<h3 class="text-2xl font-bold">' + r.groupName + '</h3>' +
+                (r.activeMember ? '<div class="text-sm text-gray-700 mt-2">🖊 ממלא: <strong>' + r.activeMember + '</strong></div>' : '') +
+                '</div>' +
+                '<div class="text-left">' +
+                '<div class="text-4xl font-bold text-green-700">' + r.verifiedNames + '</div>' +
+                '<div class="text-sm text-gray-600">שמות מאומתים</div>' +
+                '</div>' +
+                '</div>' +
+                
+                // NOMINAL GROUP: Show individual contributions
+                (r.type === 'nominal' && r.memberVerifiedCounts ? 
+                    '<div class="bg-white rounded-lg p-4 border-2 mb-4">' +
+                    '<div class="font-semibold mb-3 text-lg">📊 תרומה אינדיבידואלית של כל חבר:</div>' +
+                    '<div class="grid grid-cols-1 md:grid-cols-2 gap-3">' +
+                    Object.keys(r.memberVerifiedCounts).map(memberName => {
+                        const verifiedCount = r.memberVerifiedCounts[memberName];
+                        const memberNames = r.memberDetailedAnswers[memberName] || [];
+                        const uniqueMemberNames = [...new Set(memberNames)];
+                        
+                        return '<div class="bg-purple-100 border-2 border-purple-400 rounded-lg p-3">' +
+                            '<div class="font-bold text-purple-900 mb-2 text-lg">' + memberName + '</div>' +
+                            '<div class="text-sm space-y-1">' +
+                            '<div class="flex justify-between mb-1 bg-white p-2 rounded">' +
+                            '<span>שמות ייחודיים שתרם:</span>' +
+                            '<span class="font-bold text-lg">' + uniqueMemberNames.length + '</span>' +
+                            '</div>' +
+                            '<div class="flex justify-between mb-1 bg-green-50 p-2 rounded">' +
+                            '<span class="text-green-700 font-semibold">✔ מאומתים:</span>' +
+                            '<span class="font-bold text-green-700 text-lg">' + verifiedCount + '</span>' +
+                            '</div>' +
+                            '<div class="flex justify-between bg-red-50 p-2 rounded">' +
+                            '<span class="text-red-700 font-semibold">✗ לא מאומתים:</span>' +
+                            '<span class="font-bold text-red-700 text-lg">' + (uniqueMemberNames.length - verifiedCount) + '</span>' +
+                            '</div>' +
+                            '</div>' +
+                            '<details class="mt-3">' +
+                            '<summary class="cursor-pointer text-xs text-purple-700 hover:text-purple-900 font-semibold bg-purple-50 p-2 rounded">▼ הצג שמות מפורטים</summary>' +
+                            '<div class="mt-2 text-xs space-y-1 bg-white p-2 rounded border">' +
+                            uniqueMemberNames.map(name => {
+                                const verification = r.verificationResults[name];
+                                const isValid = verification?.valid === true;
+                                const icon = isValid ? '✔' : '✗';
+                                const color = isValid ? 'text-green-700' : 'text-red-700';
+                                return '<div class="' + color + ' font-semibold">' + icon + ' ' + name + '</div>';
+                            }).join('') +
+                            '</div>' +
+                            '</details>' +
+                            '</div>';
+                    }).join('') +
+                    '</div>' +
+                    '</div>'
+                : '') +
+                
+                '<div class="bg-white rounded-lg p-4 border-2 mb-4">' +
+                '<div class="font-semibold mb-3">כל השמות שנמצאו:</div>' +
+                '<div class="space-y-2">' +
+                r.names.map(name => {
+                    const verification = r.verificationResults[name];
+                    const isValid = verification?.valid === true;
+                    const needsReview = verification?.valid === 'manual_review';
+                    const manuallyVerified = verification?.manuallyVerified;
+                    const borderColor = isValid ? 'border-green-400' : needsReview ? 'border-orange-400' : 'border-red-400';
+                    const bgColor = isValid ? 'bg-green-50' : needsReview ? 'bg-orange-50' : 'bg-red-50';
+                    const icon = isValid ? '✔' : needsReview ? '⚠' : '✗';
+                    const iconColor = isValid ? 'text-green-600' : needsReview ? 'text-orange-600' : 'text-red-600';
+                    
+                    return '<div class="p-2 rounded-lg border ' + borderColor + ' ' + bgColor + '">' +
+                        '<div class="flex items-center gap-2">' +
+                        '<span class="text-lg ' + iconColor + '">' + icon + '</span>' +
+                        '<div class="flex-1">' +
+                        '<span class="font-bold ' + (isValid ? 'text-green-900' : needsReview ? 'text-orange-900' : 'text-red-900') + '">' + name + '</span>' +
+                        (manuallyVerified ? ' <span class="text-xs text-blue-600">👨‍🏫 ' + verification.reason + '</span>' : '') +
+                        '</div>' +
+                        '</div></div>';
+                }).join('') +
+                '</div></div></div>'
+            ).join('');
+        }
+
+        function renderChart(summary) {
+            const ctx = document.getElementById('resultsChart');
+            if (!ctx) return;
+            
+            if (window.myChart) {
+                window.myChart.destroy();
+            }
+            
+            window.myChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['ממוצע לחבר', 'ממוצע לקבוצה'],
+                    datasets: [
+                        {
+                            label: 'קבוצות רגילות',
+                            data: [summary.regular.avgPerMember || 0, summary.regular.avgPerGroup || 0],
+                            backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                            borderColor: 'rgb(59, 130, 246)',
+                            borderWidth: 2
+                        },
+                        {
+                            label: 'קבוצות נומינליות',
+                            data: [summary.nominal.avgPerMember || 0, summary.nominal.avgPerGroup || 0],
+                            backgroundColor: 'rgba(168, 85, 247, 0.7)',
+                            borderColor: 'rgb(168, 85, 247)',
+                            borderWidth: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'השוואה: קבוצות רגילות לעומת נומינליות',
+                            font: { size: 18, weight: 'bold' }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'מספר שמות מאומתים'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function showMonitorView() {
+            document.getElementById('setupView').classList.add('hidden');
+            document.getElementById('monitorView').classList.remove('hidden');
+            document.getElementById('resultsView').classList.add('hidden');
+            renderActiveGroups();
+        }
+
+        function showResultsView() {
+            document.getElementById('setupView').classList.add('hidden');
+            document.getElementById('monitorView').classList.add('hidden');
+            document.getElementById('resultsView').classList.remove('hidden');
+            
+            const loading = document.getElementById('loadingOverlay');
+            if (loading) loading.remove();
+        }
+
+        function resetToSetup() {
+            if (confirm('האם אתה בטוח? זה ימחק רק את התוצאות, אבל ישמור את התלמידים והקבוצות.')) {
+                document.getElementById('setupView').classList.remove('hidden');
+                document.getElementById('monitorView').classList.add('hidden');
+                document.getElementById('resultsView').classList.add('hidden');
+                activeSessions = [];
+                Object.values(timerIntervals).forEach(interval => clearInterval(interval));
+                timerIntervals = {};
+            }
+        }
+
+        async function fullReset() {
+            if (confirm('⚠️ זה ימחק הכל - תלמידים, קבוצות ותוצאות!\n\nהאם אתה בטוח?')) {
+                await fetch(`${API_URL}/api/reset`, { method: 'POST' });
+            }
+        }
+
+        async function verifyNameManually(name, isValid) {
+            const action = isValid ? 'אישור' : 'דחייה';
+            
+            if (!confirm(`האם אתה בטוח שברצונך ${isValid ? 'לאשר' : 'לדחות'} את השם "${name}"?\n\n⚠️ ההחלטה תחול על כל הקבוצות!`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_URL}/api/verify-name-manual`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, isValid })
+                });
+                
+                if (response.ok) {
+                    await refreshResults();
+                    alert(`✅ השם "${name}" ${isValid ? 'אושר' : 'נדחה'} בהצלחה!`);
+                } else {
+                    alert('❌ שגיאה בעדכון הסטטוס');
+                }
+            } catch (error) {
+                console.error('Error updating verification:', error);
+                alert('❌ שגיאה בעדכון הסטטוס');
+            }
+        }
+
+        async function resetManualVerification(name) {
+            if (!confirm(`האם אתה בטוח שברצונך לבטל את ההחלטה הידנית עבור "${name}"?\n\nהשם יחזור לבדיקה אוטומטית.`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_URL}/api/verify-name-manual/reset`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name })
+                });
+                
+                if (response.ok) {
+                    await refreshResults();
+                    alert(`🔄 ההחלטה הידנית עבור "${name}" בוטלה`);
+                } else {
+                    alert('❌ שגיאה באיפוס האימות');
+                }
+            } catch (error) {
+                console.error('Error resetting verification:', error);
+                alert('❌ שגיאה באיפוס האימות');
+            }
+        }
+
+        async function refreshResults() {
+            const container = document.getElementById('resultsContainer');
+            const summarySection = document.getElementById('summarySection');
+            
+            container.innerHTML = '<div class="text-center py-8"><div class="text-2xl">🔄 מעדכן תוצאות...</div><div class="text-gray-600 mt-2">מחשב מחדש את כל הסטטיסטיקות</div></div>';
+            summarySection.innerHTML = '<div class="text-center py-8"><div class="text-2xl">🔄 מחשב מחדש...</div></div>';
+            
+            try {
+                const resultsResponse = await fetch(`${API_URL}/api/results`);
+                const results = await resultsResponse.json();
+                renderResults(results);
+            } catch (error) {
+                console.error('Error refreshing results:', error);
+                container.innerHTML = '<div class="text-center py-8 text-red-600"><div class="text-2xl">❌ שגיאה בטעינת תוצאות</div></div>';
+            }
+        }
+    </script>
+</body>
+</html>

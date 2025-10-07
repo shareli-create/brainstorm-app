@@ -1,0 +1,17 @@
+{
+  "name": "brainstorm-app",
+  "version": "1.0.0",
+  "main": "server.js",
+  "engines": {
+    "node": ">=18.x"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.6.1",
+    "cors": "^2.8.5",
+    "node-fetch": "^2.6.9"
+  }
+}

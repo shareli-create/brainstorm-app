@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ממשק תלמיד - תרגיל סיעור מוחות</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-green-50 to-teal-100 min-h-screen">
+    <!-- Blocked Screen -->
+    <div id="blockedScreen" class="hidden">
+        <div class="container mx-auto p-6 max-w-4xl">
+            <div class="bg-white rounded-xl shadow-lg p-12 text-center">
+                <div class="text-6xl mb-6">🚫</div>
+                <h2 class="text-3xl font-bold mb-4 text-orange-800">
+                    חבר קבוצה אחר כבר עובד
+                </h2>
+                <div class="text-xl text-gray-700 mb-6">
+                    שלום, <span id="blockedStudentName" class="font-bold"></span>!
+                </div>
+                <div class="bg-orange-50 border-2 border-orange-300 rounded-lg p-6 mb-6">
+                    <p class="text-lg text-orange-900 mb-3">
+                        אתה נמצא ב<strong id="blockedGroupName"></strong> - קבוצה רגילה.
+                    </p>
+                    <p class="text-orange-800">
+                        <strong><span id="blockedSubmitterName"></span></strong> כבר נכנס למערכת ועובד על המשימה.
+                    </p>
+                </div>
+                <div class="bg-blue-50 border border-blue-300 rounded-lg p-6 text-right">
+                    <div class="font-bold text-blue-900 mb-3">💡 מה לעשות?</div>
+                    <ul class="space-y-2 text-blue-800">
+                        <li class="flex items-start gap-2">
+                            <span>✓</span>
+                            <span>שבו <strong>יחד</strong> ליד המכשיר של חבר הקבוצה שנכנס</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span>✓</span>
+                            <span>עבדו <strong>ביחד</strong> על מציאת השמות</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span>✓</span>
+                            <span>הוא ימלא את השמות שמצאתם יחד</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span>✓</span>
+                            <span>זו עבודת <strong>צוות</strong> - כולכם תורמים רעיונות!</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Waiting Screen -->
+    <div id="waitingScreen" class="hidden">
+        <div class="flex items-center justify-center min-h-screen p-8">
+            <div class="bg-white rounded-2xl shadow-2xl p-12 max-w-2xl w-full text-center">
+                <div class="text-6xl mb-6">⏳</div>
+                <h2 class="text-4xl font-bold mb-4 text-gray-800">
+                    שלום, <span id="welcomeName" class="text-indigo-900"></span>!
+                </h2>
+                <div class="text-2xl text-gray-700 mb-8">
+                    אתה נמצא ב<span id="groupInfo" class="font-bold text-indigo-900"></span>
+                </div>
+                
+                <div class="bg-yellow-50 border-2 border-yellow-400 rounded-xl p-6 mb-6">
+                    <div class="text-3xl font-bold text-yellow-900 mb-3">
+                        ממתין להתחלת התרגיל
+                    </div>
+                    <p class="text-lg text-yellow-800">
+                        המרצה יתניע את התרגיל בקרוב
+                    </p>
+                </div>
+                
+                <div class="bg-blue-50 border border-blue-300 rounded-lg p-6 text-right">
+                    <div class="font-bold text-blue-900 mb-3 text-xl">בינתיים:</div>
+                    <ul class="space-y-2 text-blue-800 text-lg">
+                        <li class="flex items-start gap-2">
+                            <span>✓</span>
+                            <span>הישאר ליד המכשיר </span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span>✓</span>
+                            <span>אל תסגור את הדפדפן</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span>✓</span>
+                            <span>כשהתרגיל יתחיל - המסך ישתנה אוטומטית</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Screen -->
+    <div id="taskScreen" class="hidden">
+        <div class="container mx-auto p-6 max-w-4xl">
+            <!-- Header with Timer -->
+            <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="text-2xl font-bold">שלום, <span id="taskName"></span>!</h2>
+                        <p class="text-gray-600" id="taskGroupInfo"></p>
+                    </div>
+                    <div class="text-center">
+                        <div id="taskTimer" class="text-4xl font-bold text-green-900">10:00</div>
+                        <div class="text-sm text-gray-600">זמן נותר</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Instructions -->
+            <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+                <h3 class="text-xl font-bold mb-4">המשימה:</h3>
+                
+                <!-- Active Member Notification -->
+                <div id="activeNotification" class="hidden mb-4 bg-blue-100 border-2 border-blue-400 rounded-lg p-4">
+                    <div class="font-bold text-blue-900 mb-2">👥 אתה ממלא בשם הקבוצה!</div>
+                    <p class="text-blue-800 text-sm">
+                        חברי הקבוצה שלך (<span id="otherMembersNames"></span>) צריכים לשבת איתך ולעבוד יחד על המשימה.
+                    </p>
+                </div>
+                
+                <p class="text-gray-700 mb-2">
+                    למצוא שמות של אנשים מפורסמים שהשם הפרטי מתחיל באות <strong>מימין</strong> 
+                    ושם המשפחה באות <strong>משמאל</strong>.
+                </p>
+                <p class="text-gray-700 mb-3">
+                    ניתן למצוא יותר משם אחד לכל צמד אותיות. לחץ על ➕ כדי להוסיף עוד שדה.
+                </p>
+                
+                <div class="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4 mb-3">
+                    <div class="font-bold text-yellow-900 mb-2">⚠️ חשוב לדעת:</div>
+                    <ul class="text-sm text-yellow-800 space-y-1 list-disc list-inside">
+                        <li><strong>סדר חשוב!</strong> נווה צור ≠ צור נווה</li>
+                        <li>שם פרטי ראשון, שם משפחה אחרון</li>
+                        <li>חייב להיות שם מלא (שם פרטי + שם משפחה)</li>
+                        <li>חייב להיות אדם מפורסם שיש עליו בויקיפדיה</li>
+                    </ul>
+                </div>
+                
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div class="font-semibold text-blue-900 mb-1">דוגמאות:</div>
+                    <div class="text-sm text-blue-800">
+                        <strong>דב:</strong> דוד בן גוריון ✓, דני בסן ✓<br>
+                        <strong>נצ:</strong> נווה צור ✓ (אבל צור נווה ✗)
+                    </div>
+                </div>
+                
+                <div id="groupTypeInfo" class="mt-3 p-3 rounded-lg"></div>
+            </div>
+
+            <!-- Letter Pairs Form -->
+            <div id="letterPairsContainer" class="space-y-4"></div>
+
+            <!-- Status Message -->
+            <div class="mt-6 bg-blue-100 border-2 border-blue-400 rounded-lg p-6 text-center">
+                <div class="text-xl font-bold text-blue-900 mb-2">⏰ העבודה בתהליך</div>
+                <p class="text-blue-800">
+                    התשובות יישלחו אוטומטית בתום הזמן. 
+                    <br>המשך לעבוד ולמלא שמות!
+                </p>
+            </div>
+
+            <!-- Submitted State -->
+            <div id="submittedMsg" class="hidden mt-6 bg-green-100 border-2 border-green-500 rounded-lg p-6 text-center">
+                <div class="text-2xl font-bold text-green-800 mb-2">✓ התשובות נשלחו!</div>
+                <p class="text-green-700 mb-3">המתן לסיום התרגיל...</p>
+                <div class="bg-white rounded-lg p-4 text-sm text-gray-700">
+                    <p>התרגיל יסתיים אוטומטית בתום הזמן.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Finished Screen -->
+    <div id="finishedScreen" class="hidden">
+        <div class="container mx-auto p-6 max-w-4xl">
+            <div class="bg-white rounded-xl shadow-lg p-12 text-center">
+                <div class="text-6xl mb-6">🎉</div>
+                <h2 class="text-3xl font-bold mb-4 text-gray-800">
+                    התרגיל הסתיים!
+                </h2>
+                <p class="text-lg text-gray-600 mb-6">
+                    תודה על ההשתתפות. המרצה יציג את התוצאות בקרוב.
+                </p>
+                <div class="text-gray-500 text-sm">
+                    המתן להנחיות המרצה
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = window.location.origin;
+        const socket = io(API_URL);
+
+        let students = [];
+        let currentStudent = null;
+        let currentGroup = null;
+        let activeSession = null;
+        let letterPairs = [];
+        let answers = {};
+        let timerInterval = null;
+        let hasSubmitted = false;
+        let canSubmit = true;
+
+        socket.on('initialState', (state) => {
+            students = state.students || [];
+            const sessions = state.activeSessions || [];
+            activeSession = sessions.find(s => !s.completed) || null;
+            letterPairs = state.letterPairs || [];
+            
+            // Check if student is registered
+            const storedId = localStorage.getItem('studentId');
+            const storedName = localStorage.getItem('studentName');
+            
+            if (!storedId || !storedName) {
+                // Not registered - redirect to registration
+                window.location.href = 'register.html';
+                return;
+            }
+            
+            // Find current student
+            currentStudent = students.find(s => s.id === parseInt(storedId));
+            
+            if (!currentStudent) {
+                // Student not found - redirect to registration
+                localStorage.removeItem('studentId');
+                localStorage.removeItem('studentName');
+                window.location.href = 'register.html';
+                return;
+            }
+            
+            // Student found - proceed
+            console.log('Logged in as:', currentStudent.name);
+            
+            if (activeSession) {
+                findCurrentGroup();
+                checkSubmissionPermission();
+            } else {
+                showWaitingScreen();
+            }
+        });
+
+        socket.on('studentsUpdated', (updatedStudents) => {
+            students = updatedStudents;
+            renderStudentSelect();
+        });
+
+        socket.on('sessionStarted', (session) => {
+            if (currentStudent && currentGroup) {
+                const isMyGroup = session.groups.some(g => g.id === currentGroup.id);
+                if (isMyGroup) {
+                    activeSession = session;
+                    letterPairs = session.letterPairs;
+                    checkSubmissionPermission();
+                }
+            }
+        });
+
+        socket.on('sessionEnded', (data) => {
+            if (activeSession && activeSession.id === data.sessionId) {
+                stopTimer();
+                if (!hasSubmitted && canSubmit) {
+                    submitAnswersAuto();
+                } else {
+                    showFinishedScreen();
+                }
+            }
+        });
+
+        socket.on('submissionReceived', (data) => {
+            if (currentGroup && currentGroup.type === 'regular' && data.groupId === currentGroup.id) {
+                checkSubmissionPermission();
+            }
+        });
+
+        function findCurrentGroup() {
+            if (!activeSession || !currentStudent) return;
+            
+            currentGroup = activeSession.groups.find(g => 
+                g.members.some(m => m.id === currentStudent.id)
+            );
+        }
+
+        async function checkSubmissionPermission() {
+            if (!currentGroup) {
+                showWaitingScreen();
+                return;
+            }
+
+            if (currentGroup.type === 'regular') {
+                try {
+                    const response = await fetch(
+                        `${API_URL}/api/groups/${currentGroup.id}/can-submit/${currentStudent.id}`
+                    );
+                    const data = await response.json();
+                    
+                    canSubmit = data.canSubmit;
+                    
+                    if (data.isActiveMember) {
+                        showTaskScreen();
+                        startTimer();
+                        
+                        const otherMembers = currentGroup.members
+                            .filter(m => m.id !== currentStudent.id)
+                            .map(m => m.name)
+                            .join(', ');
+                        
+                        if (otherMembers) {
+                            showActiveNotification(otherMembers);
+                        }
+                    } else {
+                        showBlockedScreen(data.activeMember);
+                    }
+                } catch (error) {
+                    console.error('Error checking submission permission:', error);
+                    showTaskScreen();
+                    startTimer();
+                }
+            } else {
+                canSubmit = true;
+                showTaskScreen();
+                startTimer();
+            }
+        }
+
+        function showActiveNotification(otherMembers) {
+            const notification = document.getElementById('activeNotification');
+            if (notification) {
+                document.getElementById('otherMembersNames').textContent = otherMembers;
+                notification.classList.remove('hidden');
+            }
+        }
+
+        function showBlockedScreen(submitterName) {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('waitingScreen').classList.add('hidden');
+            document.getElementById('taskScreen').classList.add('hidden');
+            document.getElementById('blockedScreen').classList.remove('hidden');
+            document.getElementById('finishedScreen').classList.add('hidden');
+            
+            document.getElementById('blockedSubmitterName').textContent = submitterName;
+            document.getElementById('blockedStudentName').textContent = currentStudent.name;
+            
+            if (currentGroup) {
+                document.getElementById('blockedGroupName').textContent = currentGroup.name;
+            }
+        }
+
+        function startTimer() {
+            if (!activeSession) return;
+            
+            updateTimerDisplay();
+            timerInterval = setInterval(() => {
+                updateTimerDisplay();
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
+        function updateTimerDisplay() {
+            if (!activeSession) return;
+            
+            const now = Date.now();
+            const remaining = Math.max(0, Math.floor((activeSession.endTime - now) / 1000));
+            
+            const minutes = Math.floor(remaining / 60);
+            const seconds = remaining % 60;
+            
+            const display = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            document.getElementById('taskTimer').textContent = display;
+            
+            if (remaining === 0) {
+                stopTimer();
+                if (!hasSubmitted && canSubmit) {
+                    submitAnswersAuto();
+                }
+            }
+        }
+
+        function initializeAnswers() {
+            answers = {};
+            letterPairs.forEach(pair => {
+                answers[pair] = [''];
+            });
+        }
+
+        function renderLetterPairs() {
+            const container = document.getElementById('letterPairsContainer');
+            
+            container.innerHTML = letterPairs.map(pair => `
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="text-3xl font-bold text-indigo-900 bg-indigo-100 px-4 py-2 rounded-lg">
+                            ${pair}
+                        </div>
+                        <button
+                            onclick="addAnswerField('${pair}')"
+                            class="text-green-600 hover:text-green-700 text-2xl"
+                            ${!canSubmit ? 'disabled' : ''}
+                        >
+                            ➕
+                        </button>
+                    </div>
+                    <div id="inputs-${pair}" class="space-y-2"></div>
+                </div>
+            `).join('');
+
+            letterPairs.forEach(pair => {
+                renderInputsForPair(pair);
+            });
+        }
+
+        function renderInputsForPair(pair) {
+            const container = document.getElementById(`inputs-${pair}`);
+            const pairAnswers = answers[pair] || [''];
+            
+            container.innerHTML = pairAnswers.map((answer, idx) => `
+                <div class="flex gap-2">
+                    <input
+                        type="text"
+                        value="${answer}"
+                        onchange="updateAnswer('${pair}', ${idx}, this.value)"
+                        placeholder="למשל: דוד בן גוריון"
+                        class="flex-1 p-3 border rounded-lg focus:ring-2 focus:ring-green-500"
+                        ${!canSubmit ? 'disabled' : ''}
+                    />
+                    ${pairAnswers.length > 1 ? `
+                        <button
+                            onclick="removeAnswerField('${pair}', ${idx})"
+                            class="text-red-500 hover:text-red-700 px-3"
+                            ${!canSubmit ? 'disabled' : ''}
+                        >
+                            ✕
+                        </button>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        function updateAnswer(pair, index, value) {
+            if (!answers[pair]) answers[pair] = [];
+            answers[pair][index] = value;
+        }
+
+        function addAnswerField(pair) {
+            if (!canSubmit) return;
+            if (!answers[pair]) answers[pair] = [];
+            answers[pair].push('');
+            renderInputsForPair(pair);
+        }
+
+        function removeAnswerField(pair, index) {
+            if (!canSubmit) return;
+            if (!answers[pair]) return;
+            answers[pair].splice(index, 1);
+            if (answers[pair].length === 0) {
+                answers[pair] = [''];
+            }
+            renderInputsForPair(pair);
+        }
+
+        async function submitAnswersAuto() {
+            if (hasSubmitted) return;
+
+            const cleanedAnswers = {};
+            Object.keys(answers).forEach(pair => {
+                cleanedAnswers[pair] = answers[pair].filter(a => a && a.trim());
+            });
+
+            const payload = {
+                studentId: currentStudent.id,
+                groupId: currentGroup?.type === 'regular' ? currentGroup.id : null,
+                answers: cleanedAnswers
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/api/submissions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    hasSubmitted = true;
+                    document.getElementById('submittedMsg').classList.remove('hidden');
+                    
+                    // Disable all inputs
+                    document.querySelectorAll('input').forEach(input => {
+                        input.disabled = true;
+                    });
+                    document.querySelectorAll('button[onclick^="addAnswerField"]').forEach(btn => {
+                        btn.disabled = true;
+                        btn.classList.add('opacity-50', 'cursor-not-allowed');
+                    });
+                }
+            } catch (error) {
+                console.error('Error auto-submitting:', error);
+            }
+        }
+
+        function showWaitingScreen() {
+            document.getElementById('blockedScreen').classList.add('hidden');
+            document.getElementById('waitingScreen').classList.remove('hidden');
+            document.getElementById('taskScreen').classList.add('hidden');
+            document.getElementById('finishedScreen').classList.add('hidden');
+
+            document.getElementById('welcomeName').textContent = currentStudent.name;
+            
+            if (currentGroup) {
+                const groupType = currentGroup.type === 'regular' ? 'קבוצה רגילה' : 'קבוצה נומינלית';
+                document.getElementById('groupInfo').textContent = `${currentGroup.name} (${groupType})`;
+            }
+        }
+
+        function showTaskScreen() {
+            document.getElementById('blockedScreen').classList.add('hidden');
+            document.getElementById('waitingScreen').classList.add('hidden');
+            document.getElementById('taskScreen').classList.remove('hidden');
+            document.getElementById('finishedScreen').classList.add('hidden');
+
+            document.getElementById('taskName').textContent = currentStudent.name;
+            
+            if (currentGroup) {
+                const groupType = currentGroup.type === 'regular' ? 'קבוצה רגילה' : 'קבוצה נומינלית';
+                document.getElementById('taskGroupInfo').textContent = `${currentGroup.name} (${groupType})`;
+                
+                const infoDiv = document.getElementById('groupTypeInfo');
+                if (currentGroup.type === 'regular') {
+                    infoDiv.className = 'mt-3 p-3 rounded-lg bg-blue-100 border border-blue-300';
+                    infoDiv.innerHTML = '<strong>👥 קבוצה רגילה:</strong> אתם עובדים יחד! שתפו רעיונות ומלאו את השמות שמצאתם ביחד.';
+                } else {
+                    infoDiv.className = 'mt-3 p-3 rounded-lg bg-purple-100 border border-purple-300';
+                    infoDiv.innerHTML = '<strong>👤 קבוצה נומינלית:</strong> אתה עובד לבד. מלא את השמות שמצאת בעצמך.';
+                }
+            }
+
+            initializeAnswers();
+            renderLetterPairs();
+            hasSubmitted = false;
+        }
+
+        function showFinishedScreen() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('blockedScreen').classList.add('hidden');
+            document.getElementById('waitingScreen').classList.add('hidden');
+            document.getElementById('taskScreen').classList.add('hidden');
+            document.getElementById('finishedScreen').classList.remove('hidden');
+        }
+
+        function backToLogin() {
+            currentStudent = null;
+            currentGroup = null;
+            activeSession = null;
+            answers = {};
+            hasSubmitted = false;
+            canSubmit = true;
+            
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('blockedScreen').classList.add('hidden');
+            document.getElementById('waitingScreen').classList.add('hidden');
+            document.getElementById('taskScreen').classList.add('hidden');
+            document.getElementById('finishedScreen').classList.add('hidden');
+            
+            document.getElementById('studentSelect').value = '';
+        }
+    </script>
+</body>
+</html>
