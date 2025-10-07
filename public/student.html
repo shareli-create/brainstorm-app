@@ -3,50 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ממשק תלמיד - תרגיל סיעור מוחות</title>
+    <title>ממשק תלמיד</title>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: Arial, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
             padding: 20px;
         }
-
         .container {
             background: white;
             border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
             padding: 40px;
-            max-width: 600px;
-            width: 100%;
+            max-width: 900px;
+            margin: 0 auto;
         }
-
-        h1 {
-            color: #667eea;
-            text-align: center;
-            margin-bottom: 10px;
-            font-size: 2em;
-        }
-
-        .student-name {
-            text-align: center;
-            color: #666;
-            margin-bottom: 30px;
-            font-size: 1.1em;
-        }
-
+        h1 { color: #667eea; text-align: center; margin-bottom: 30px; }
         .timer {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            background: #f5576c;
             color: white;
             padding: 20px;
             border-radius: 15px;
@@ -54,373 +30,293 @@
             margin-bottom: 30px;
             font-size: 2em;
             font-weight: bold;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
         }
-
-        .task-description {
+        .pairs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .pair-card {
             background: #f8f9fa;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            border-right: 4px solid #667eea;
-        }
-
-        .input-area {
-            margin-bottom: 20px;
-        }
-
-        textarea {
-            width: 100%;
-            min-height: 150px;
-            padding: 15px;
             border: 2px solid #ddd;
             border-radius: 10px;
-            font-family: inherit;
-            font-size: 1em;
-            resize: vertical;
-            transition: border-color 0.3s;
+            padding: 15px;
         }
-
-        textarea:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .name-count {
-            color: #666;
+        .pair-header {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #667eea;
+            text-align: center;
             margin-bottom: 10px;
-            font-size: 0.9em;
         }
-
+        textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            resize: vertical;
+        }
+        textarea:focus { outline: none; border-color: #667eea; }
         button {
             width: 100%;
             padding: 15px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #667eea;
             color: white;
             border: none;
             border-radius: 10px;
             font-size: 1.1em;
             font-weight: bold;
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
         }
-
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-
-        button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .waiting-screen, .blocked-screen {
-            text-align: center;
-        }
-
-        .waiting-screen h2, .blocked-screen h2 {
-            color: #667eea;
-            margin-bottom: 20px;
-        }
-
-        .status-icon {
-            font-size: 4em;
-            margin-bottom: 20px;
-        }
-
-        .blocked-screen {
-            background: #fff3cd;
-            padding: 30px;
-            border-radius: 15px;
-            border: 2px solid #ffc107;
-        }
-
-        .group-info {
-            background: #e3f2fd;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .success-message {
+        button:hover { background: #5568d3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .waiting { text-align: center; padding: 60px; }
+        .waiting-icon { font-size: 4em; margin-bottom: 20px; }
+        .success {
             background: #d4edda;
             color: #155724;
             padding: 15px;
             border-radius: 10px;
             margin-top: 20px;
             text-align: center;
-            border: 1px solid #c3e6cb;
+            display: none;
         }
-
-        @media (max-width: 600px) {
-            .container {
-                padding: 20px;
-            }
-
-            h1 {
-                font-size: 1.5em;
-            }
-
-            .timer {
-                font-size: 1.5em;
-            }
+        .blocked {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
         }
     </style>
 </head>
 <body>
-    <div class="container" id="mainContainer">
-        <!-- Content will be dynamically inserted here -->
+    <div class="container" id="app">
+        <div class="waiting">
+            <div class="waiting-icon">⏳</div>
+            <h2>טוען...</h2>
+        </div>
     </div>
 
     <script>
-        // ✅ CRITICAL FIX: Use dynamic URL for production
         const API_URL = window.location.origin;
         const socket = io(API_URL);
 
-        let currentStudent = null;
-        let students = [];
+        let studentId = null;
+        let studentName = null;
         let activeSession = null;
         let currentGroup = null;
-        let timerInterval = null;
+        let letterPairs = [];
         let remainingTime = 0;
-        let submittedNames = [];
+        let answers = {};
 
-        // Initialize
         socket.on('connect', () => {
-            console.log('Connected to server');
+            console.log('Connected');
         });
 
         socket.on('initialState', (state) => {
-            console.log('Received initialState:', state);
-            students = state.students || [];
+            console.log('Got state:', state);
+            
+            // Get student from localStorage
+            studentId = parseInt(localStorage.getItem('studentId'));
+            studentName = localStorage.getItem('studentName');
+
+            if (!studentId || !studentName) {
+                window.location.href = 'register.html';
+                return;
+            }
+
+            // Find active session
             const sessions = state.activeSessions || [];
-            activeSession = sessions.find(s => !s.completed) || null;
+            activeSession = sessions.find(s => !s.completed);
 
-            // Check if student is registered
-            const storedId = localStorage.getItem('studentId');
-            const storedName = localStorage.getItem('studentName');
-
-            if (!storedId || !storedName) {
-                window.location.href = 'register.html';
+            if (!activeSession) {
+                showWaiting();
                 return;
             }
 
-            currentStudent = students.find(s => s.id === parseInt(storedId));
+            // Find my group
+            letterPairs = state.letterPairs || [];
+            
+            for (const group of activeSession.groups) {
+                if (group.members.some(m => m.id === studentId)) {
+                    currentGroup = group;
+                    break;
+                }
+            }
 
-            if (!currentStudent) {
-                localStorage.removeItem('studentId');
-                localStorage.removeItem('studentName');
-                window.location.href = 'register.html';
+            if (!currentGroup) {
+                showWaiting();
                 return;
             }
 
-            if (activeSession) {
-                findCurrentGroup();
-                checkSubmissionPermission();
+            // Check if can submit (for regular groups)
+            if (currentGroup.type === 'regular') {
+                checkPermission();
             } else {
-                showWaitingScreen();
+                showExercise();
             }
         });
 
         socket.on('sessionStarted', (session) => {
-            console.log('Session started:', session);
+            console.log('Session started!');
             activeSession = session;
-            findCurrentGroup();
-            checkSubmissionPermission();
-        });
-
-        socket.on('sessionEnded', () => {
-            console.log('Session ended');
-            activeSession = null;
-            currentGroup = null;
-            showWaitingScreen();
-        });
-
-        socket.on('timeUpdate', (data) => {
-            remainingTime = data.remainingTime;
-            updateTimerDisplay();
-        });
-
-        socket.on('submissionReceived', (data) => {
-            if (data.studentId === currentStudent.id) {
-                showSuccessMessage();
-            }
-        });
-
-        function findCurrentGroup() {
-            if (!activeSession || !currentStudent) return;
-
-            for (const group of activeSession.groups) {
-                if (group.members.includes(currentStudent.id)) {
+            letterPairs = session.letterPairs || [];
+            
+            for (const group of session.groups) {
+                if (group.members.some(m => m.id === studentId)) {
                     currentGroup = group;
-                    submittedNames = group.submissions
-                        .filter(s => s.studentId === currentStudent.id)
-                        .flatMap(s => s.names);
                     break;
                 }
             }
-        }
 
-        function checkSubmissionPermission() {
-            if (!currentGroup) {
-                showWaitingScreen();
-                return;
-            }
-
-            if (currentGroup.type === 'regular') {
-                const hasOtherSubmission = currentGroup.submissions.some(
-                    s => s.studentId !== currentStudent.id
-                );
-
-                if (hasOtherSubmission) {
-                    showBlockedScreen();
+            if (currentGroup) {
+                if (currentGroup.type === 'regular') {
+                    checkPermission();
                 } else {
-                    showExerciseScreen();
+                    showExercise();
                 }
-            } else {
-                showExerciseScreen();
+            }
+        });
+
+        socket.on('sessionEnded', () => {
+            showWaiting();
+        });
+
+        socket.on('submissionReceived', () => {
+            document.getElementById('successMsg').style.display = 'block';
+            setTimeout(() => {
+                document.getElementById('successMsg').style.display = 'none';
+            }, 3000);
+        });
+
+        async function checkPermission() {
+            try {
+                const res = await fetch(`${API_URL}/api/groups/${currentGroup.id}/can-submit/${studentId}`);
+                const data = await res.json();
+                
+                if (data.canSubmit) {
+                    showExercise();
+                } else {
+                    showBlocked(data.activeMember);
+                }
+            } catch (e) {
+                console.error(e);
+                showExercise();
             }
         }
 
-        function showWaitingScreen() {
-            document.getElementById('mainContainer').innerHTML = `
-                <div class="waiting-screen">
-                    <div class="status-icon">⏳</div>
+        function showWaiting() {
+            document.getElementById('app').innerHTML = `
+                <div class="waiting">
+                    <div class="waiting-icon">⏳</div>
                     <h2>ממתין להתחלת התרגיל</h2>
-                    <p>המרצה טרם התחיל את המשימה. אנא המתן...</p>
+                    <p>המרצה טרם התחיל את המשימה</p>
                 </div>
             `;
         }
 
-        function showBlockedScreen() {
-            document.getElementById('mainContainer').innerHTML = `
-                <div class="blocked-screen">
-                    <div class="status-icon">🔒</div>
-                    <h2>חבר קבוצה אחר כבר עובד</h2>
-                    <p>בקבוצה רגילה, רק חבר אחד יכול למלא את המשימה בכל פעם.</p>
-                    <p>אנא המתן עד שהחבר השני יסיים.</p>
+        function showBlocked(activeMember) {
+            document.getElementById('app').innerHTML = `
+                <div class="blocked">
+                    <div class="waiting-icon">🔒</div>
+                    <h2>חבר קבוצה אחר עובד</h2>
+                    <p><strong>${activeMember}</strong> כבר עובד על המשימה</p>
+                    <p>בקבוצה רגילה רק אחד יכול למלא</p>
                 </div>
             `;
         }
 
-        function showExerciseScreen() {
-            remainingTime = activeSession.duration;
+        function showExercise() {
+            remainingTime = Math.floor((activeSession.endTime - Date.now()) / 1000);
             
-            document.getElementById('mainContainer').innerHTML = `
-                <h1>💡 משימת סיעור מוחות</h1>
-                <div class="student-name">שלום, ${currentStudent.name}!</div>
-                
-                <div class="group-info">
-                    <strong>קבוצה ${currentGroup.type === 'nominal' ? 'נומינלית' : 'רגילה'}</strong>
-                </div>
-
-                <div class="timer" id="timer">
-                    ${formatTime(remainingTime)}
-                </div>
-
-                <div class="task-description">
-                    <h3>המשימה שלך:</h3>
-                    <p>רשום שמות של אנשים מפורסמים בישראל (פוליטיקאים, אמנים, ספורטאים וכו')</p>
-                    <p><strong>חשוב:</strong> רשום כל שם בשורה נפרדת</p>
-                </div>
-
-                <div class="input-area">
-                    <div class="name-count" id="nameCount">שמות שהוספת: ${submittedNames.length}</div>
+            const pairsHTML = letterPairs.map(pair => `
+                <div class="pair-card">
+                    <div class="pair-header">${pair}</div>
                     <textarea 
-                        id="namesInput" 
-                        placeholder="דוגמה:
-דוד בן גוריון
-גולדה מאיר
-יצחק רבין"
-                    >${submittedNames.join('\n')}</textarea>
+                        id="pair_${pair}" 
+                        placeholder="רשום שמות (שורה לכל שם)
+למשל:
+${pair[0]}בי ${pair[1]}הן
+${pair[0]}מר ${pair[1]}בון"
+                        oninput="updateAnswers('${pair}')"
+                    >${answers[pair] ? answers[pair].join('\n') : ''}</textarea>
+                    <div style="text-align:center;color:#666;margin-top:5px;">
+                        <span id="count_${pair}">0</span> שמות
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('app').innerHTML = `
+                <h1>💡 משימת סיעור מוחות</h1>
+                <div style="text-align:center;color:#666;margin-bottom:20px;">
+                    שלום, <strong>${studentName}</strong>!
+                </div>
+                
+                <div class="timer" id="timer">${formatTime(remainingTime)}</div>
+
+                <div style="background:#f8f9fa;padding:15px;border-radius:10px;margin-bottom:20px;">
+                    <strong>המשימה:</strong> רשום שמות של אנשים מפורסמים בישראל
+                    <br>כל שם צריך להתחיל באותיות שבכותרת
+                    <br><strong>חשוב:</strong> שם פרטי ושם משפחה בשורות נפרדות
                 </div>
 
-                <button onclick="submitNames()" id="submitBtn">
-                    שלח תשובות
-                </button>
+                <div class="pairs-grid">${pairsHTML}</div>
 
-                <div id="successMessage" style="display: none;"></div>
+                <button onclick="submitAnswers()">שלח תשובות</button>
+                <div class="success" id="successMsg">✅ נשלח בהצלחה!</div>
             `;
 
             startTimer();
-
-            document.getElementById('namesInput').addEventListener('input', updateNameCount);
         }
 
-        function updateNameCount() {
-            const text = document.getElementById('namesInput').value;
-            const names = text.split('\n').filter(name => name.trim().length > 0);
-            document.getElementById('nameCount').textContent = `שמות שהוספת: ${names.length}`;
+        function updateAnswers(pair) {
+            const textarea = document.getElementById('pair_' + pair);
+            const lines = textarea.value.split('\n').filter(l => l.trim());
+            answers[pair] = lines;
+            document.getElementById('count_' + pair).textContent = lines.length;
         }
 
         function startTimer() {
-            if (timerInterval) {
-                clearInterval(timerInterval);
-            }
-
-            timerInterval = setInterval(() => {
+            setInterval(() => {
                 remainingTime--;
-                updateTimerDisplay();
-
+                const timerEl = document.getElementById('timer');
+                if (timerEl) {
+                    timerEl.textContent = formatTime(remainingTime);
+                    if (remainingTime <= 60) {
+                        timerEl.style.background = '#dc3545';
+                    }
+                }
                 if (remainingTime <= 0) {
-                    clearInterval(timerInterval);
-                    alert('הזמן נגמר! המשימה הסתיימה.');
-                    showWaitingScreen();
+                    alert('הזמן נגמר!');
+                    showWaiting();
                 }
             }, 1000);
         }
 
-        function updateTimerDisplay() {
-            const timerElement = document.getElementById('timer');
-            if (timerElement) {
-                timerElement.textContent = formatTime(remainingTime);
-                
-                if (remainingTime <= 60) {
-                    timerElement.style.background = 'linear-gradient(135deg, #f5576c 0%, #c71d3b 100%)';
-                }
-            }
+        function formatTime(sec) {
+            const m = Math.floor(sec / 60);
+            const s = sec % 60;
+            return m + ':' + (s < 10 ? '0' : '') + s;
         }
 
-        function formatTime(seconds) {
-            const mins = Math.floor(seconds / 60);
-            const secs = seconds % 60;
-            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-        }
-
-        function submitNames() {
-            const text = document.getElementById('namesInput').value;
-            const names = text.split('\n')
-                .map(name => name.trim())
-                .filter(name => name.length > 0);
-
-            if (names.length === 0) {
-                alert('אנא הכנס לפחות שם אחד');
-                return;
-            }
-
-            socket.emit('submitAnswer', {
-                sessionId: activeSession.id,
-                groupId: currentGroup.id,
-                studentId: currentStudent.id,
-                names: names
-            });
-
-            submittedNames = names;
-        }
-
-        function showSuccessMessage() {
-            const msgDiv = document.getElementById('successMessage');
-            if (msgDiv) {
-                msgDiv.className = 'success-message';
-                msgDiv.style.display = 'block';
-                msgDiv.innerHTML = '✅ התשובות נשלחו בהצלחה!';
-
-                setTimeout(() => {
-                    msgDiv.style.display = 'none';
-                }, 3000);
+        async function submitAnswers() {
+            const groupId = currentGroup ? currentGroup.id : null;
+            
+            try {
+                await fetch(`${API_URL}/api/submissions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        studentId: studentId,
+                        groupId: groupId,
+                        answers: answers
+                    })
+                });
+            } catch (e) {
+                alert('שגיאה בשליחה');
             }
         }
     </script>
