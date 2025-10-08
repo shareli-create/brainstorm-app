@@ -34,6 +34,25 @@
             <div class="bg-white rounded-xl shadow-lg p-6">
                 <h2 class="text-2xl font-bold mb-4 text-gray-800">יצירת קבוצות</h2>
                 
+                <!-- AUTO CREATE BUTTON -->
+                <div class="bg-green-50 border-2 border-green-400 rounded-lg p-4 mb-4">
+                    <h3 class="font-bold text-lg mb-2 text-green-900">🚀 חלוקה אוטומטית חכמה</h3>
+                    <button 
+                        onclick="autoCreateGroups()" 
+                        class="w-full bg-green-600 text-white px-6 py-4 rounded-lg hover:bg-green-700 text-xl font-bold mb-2"
+                    >
+                        ⚡ צור קבוצות אוטומטית
+                    </button>
+                    <p class="text-sm text-green-800">
+                        המערכת תחלק את כל התלמידים באופן אוטומטי:<br>
+                        • קבוצה נומינלית אחת + קבוצות רגילות<br>
+                        • חלוקה שווה ככל האפשר<br>
+                        • כל קבוצה לפחות 4 חברים
+                    </p>
+                </div>
+
+                <div class="text-center text-gray-500 mb-4 font-semibold">או צור קבוצות ידנית:</div>
+                
                 <!-- Group Creation Form -->
                 <div class="bg-blue-50 border-2 border-blue-300 rounded-lg p-4 mb-4">
                     <h3 class="font-bold text-lg mb-3">צור קבוצה חדשה</h3>
@@ -292,6 +311,151 @@
         }
 
         async function createMultipleGroups(type, size) {
+            const assignedIds = groups.flatMap(g => g.members.map(m => m.id));
+            const availableStudents = students.filter(s => !assignedIds.includes(s.id));
+            
+            if (availableStudents.length < size) {
+                alert(`אין מספיק תלמידים זמינים! יש ${availableStudents.length} זמינים, צריך לפחות ${size}`);
+                return;
+            }
+
+            const totalStudents = availableStudents.length;
+            const baseGroups = Math.floor(totalStudents / size);
+            const remainder = totalStudents % size;
+            
+            // Always distribute remainder across existing groups
+            const groupSizes = [];
+            for (let i = 0; i < baseGroups; i++) {
+                groupSizes.push(i < remainder ? size + 1 : size);
+            }
+
+            // Build confirmation message
+            const sizeCounts = groupSizes.reduce((acc, s) => {
+                acc[s] = (acc[s] || 0) + 1;
+                return acc;
+            }, {});
+
+            let message = `ליצור ${baseGroups} קבוצות ${type === 'regular' ? 'רגילות' : 'נומינליות'}?\n\n`;
+            Object.entries(sizeCounts).sort((a, b) => b[0] - a[0]).forEach(([s, count]) => {
+                message += `• ${count} קבוצות של ${s} חברים\n`;
+            });
+            message += `\n📊 סה"כ: כל ${totalStudents} התלמידים ישובצו`;
+
+            if (!confirm(message)) {
+                return;
+            }
+
+            // Temporarily change the type selector
+            const originalType = document.getElementById('groupType').value;
+            document.getElementById('groupType').value = type;
+
+            // Create groups
+            const createdGroups = [];
+            for (let i = 0; i < groupSizes.length; i++) {
+                try {
+                    await createGroup(groupSizes[i]);
+                    createdGroups.push(groupSizes[i]);
+                    await new Promise(resolve => setTimeout(resolve, 150));
+                } catch (error) {
+                    console.error('Error creating group:', error);
+                }
+            }
+
+            // Restore original type
+            document.getElementById('groupType').value = originalType;
+
+            // Summary
+            const summary = createdGroups.reduce((acc, s) => {
+                acc[s] = (acc[s] || 0) + 1;
+                return acc;
+            }, {});
+
+            let summaryText = `✅ נוצרו ${createdGroups.length} קבוצות בהצלחה!\n\n`;
+            Object.entries(summary).sort((a, b) => b[0] - a[0]).forEach(([s, count]) => {
+                summaryText += `• ${count} קבוצות של ${s} חברים\n`;
+            });
+            const totalAssigned = createdGroups.reduce((sum, s) => sum + s, 0);
+            summaryText += `\n📊 סה"כ: ${totalAssigned} תלמידים שובצו`;
+
+            alert(summaryText);
+        }
+            const assignedIds = groups.flatMap(g => g.members.map(m => m.id));
+            const availableStudents = students.filter(s => !assignedIds.includes(s.id));
+            const total = availableStudents.length;
+
+            if (total < 8) {
+                alert('צריך לפחות 8 תלמידים (4 לקבוצה רגילה + 4 לקבוצה נומינלית)');
+                return;
+            }
+
+            // Calculate optimal group distribution
+            let numGroups, groupSize;
+            
+            if (total <= 12) {
+                // Small: 2 groups
+                numGroups = 2;
+            } else if (total <= 20) {
+                // Medium: 3 groups
+                numGroups = 3;
+            } else if (total <= 30) {
+                // Medium-large: 4-5 groups
+                numGroups = Math.ceil(total / 6);
+            } else {
+                // Large: aim for groups of 5-6
+                numGroups = Math.ceil(total / 6);
+            }
+
+            // Calculate group sizes
+            groupSize = Math.floor(total / numGroups);
+            const remainder = total % numGroups;
+
+            // Build group sizes array
+            const groupSizes = [];
+            for (let i = 0; i < numGroups; i++) {
+                groupSizes.push(i < remainder ? groupSize + 1 : groupSize);
+            }
+
+            // Decide split: 1 nominal, rest regular
+            const numNominal = 1;
+            const numRegular = numGroups - 1;
+
+            // Build message
+            let message = `חלוקה אוטומטית ל-${numGroups} קבוצות:\n\n`;
+            message += `📊 ${numRegular} קבוצות רגילות\n`;
+            message += `📊 ${numNominal} קבוצה נומינלית\n\n`;
+            
+            const sizeCounts = groupSizes.reduce((acc, s) => {
+                acc[s] = (acc[s] || 0) + 1;
+                return acc;
+            }, {});
+            
+            Object.entries(sizeCounts).sort((a, b) => b[0] - a[0]).forEach(([s, count]) => {
+                message += `• ${count} קבוצות של ${s} חברים\n`;
+            });
+            message += `\n✅ כל ${total} התלמידים ישובצו`;
+
+            if (!confirm(message)) {
+                return;
+            }
+
+            // Create groups
+            const originalType = document.getElementById('groupType').value;
+            
+            for (let i = 0; i < groupSizes.length; i++) {
+                const type = i === 0 ? 'nominal' : 'regular'; // First is nominal
+                document.getElementById('groupType').value = type;
+                
+                try {
+                    await createGroup(groupSizes[i]);
+                    await new Promise(resolve => setTimeout(resolve, 150));
+                } catch (error) {
+                    console.error('Error creating group:', error);
+                }
+            }
+
+            document.getElementById('groupType').value = originalType;
+            alert(`✅ נוצרו ${numGroups} קבוצות בהצלחה!\n\n${numRegular} רגילות + ${numNominal} נומינלית`);
+        }
             const assignedIds = groups.flatMap(g => g.members.map(m => m.id));
             const availableStudents = students.filter(s => !assignedIds.includes(s.id));
             
