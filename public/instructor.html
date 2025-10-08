@@ -378,7 +378,7 @@
             if (!confirm('למלא תשובות להדגמה?')) return;
 
             const demoAnswers = {
-                'צנ': ['צבי נשרי', 'צפורה נבון'],
+                'צן': ['צבי נשרי', 'צפורה נבון'],
                 'תד': ['תמר דוד', 'תון דוד'],
                 'קכ': ['קארין כהן', 'קרן כץ'],
                 'עג': ['עמוס גילן', 'עדי בינזגורג'],
@@ -534,6 +534,9 @@
 
         async function renderResults(data) {
             const { groupResults, summary } = data;
+            
+            // Cache results for manual verification updates
+            cachedResults = data;
             
             // Summary Section
             const summaryHTML = `
@@ -768,9 +771,14 @@
                                 } else {
                                     return `
                                         <div class="p-3 rounded-lg bg-red-50 border-2 border-red-300">
-                                            <div class="flex justify-between items-center mb-1">
+                                            <div class="flex justify-between items-center mb-2">
                                                 <span class="font-semibold text-red-900">${name}</span>
-                                                <span class="text-red-700 font-bold">✗ לא תקין</span>
+                                                <div class="flex gap-2 items-center">
+                                                    <span class="text-red-700 font-bold">✗ לא תקין</span>
+                                                    <button onclick="manualVerify('${name}', true)" class="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600 text-xs font-bold">
+                                                        ✓ אשר
+                                                    </button>
+                                                </div>
                                             </div>
                                             <div class="text-xs text-red-700">${verification.reason}</div>
                                         </div>
@@ -785,6 +793,8 @@
             document.getElementById('resultsContainer').innerHTML = resultsHTML;
         }
         
+        let cachedResults = null;
+
         async function manualVerify(name, isValid) {
             try {
                 await fetch(`${API_URL}/api/verify-name-manual`, {
@@ -793,12 +803,50 @@
                     body: JSON.stringify({ name, isValid })
                 });
                 
-                // Recalculate and refresh results
-                const response = await fetch(`${API_URL}/api/results`);
-                const results = await response.json();
-                renderResults(results);
+                // Update cached results locally
+                if (cachedResults) {
+                    cachedResults.groupResults.forEach(group => {
+                        if (group.verificationResults[name]) {
+                            group.verificationResults[name].valid = isValid;
+                            group.verificationResults[name].reason = isValid ? 'מאומת ע"י מרצה' : 'נדחה ע"י מרצה';
+                            group.verificationResults[name].manuallyVerified = true;
+                            
+                            // Recalculate verified count for this group
+                            group.verifiedNames = group.names.filter(n => 
+                                group.verificationResults[n]?.valid === true
+                            ).length;
+                            group.avgPerMember = group.verifiedNames / group.memberCount;
+                        }
+                    });
+                    
+                    // Recalculate summary
+                    cachedResults.summary.regular.verifiedNames = 0;
+                    cachedResults.summary.nominal.verifiedNames = 0;
+                    
+                    cachedResults.groupResults.forEach(group => {
+                        if (group.type === 'regular') {
+                            cachedResults.summary.regular.verifiedNames += group.verifiedNames;
+                        } else {
+                            cachedResults.summary.nominal.verifiedNames += group.verifiedNames;
+                        }
+                    });
+                    
+                    if (cachedResults.summary.regular.memberCount > 0) {
+                        cachedResults.summary.regular.avgPerMember = cachedResults.summary.regular.verifiedNames / cachedResults.summary.regular.memberCount;
+                        cachedResults.summary.regular.avgPerGroup = cachedResults.summary.regular.verifiedNames / cachedResults.summary.regular.groupCount;
+                    }
+                    if (cachedResults.summary.nominal.memberCount > 0) {
+                        cachedResults.summary.nominal.avgPerMember = cachedResults.summary.nominal.verifiedNames / cachedResults.summary.nominal.memberCount;
+                        cachedResults.summary.nominal.avgPerGroup = cachedResults.summary.nominal.verifiedNames / cachedResults.summary.nominal.groupCount;
+                    }
+                    
+                    // Re-render with updated data
+                    renderResults(cachedResults);
+                }
                 
-                alert(isValid ? `✓ ${name} אושר!` : `✗ ${name} נדחה!`);
+                const status = isValid ? '✓ אושר' : '✗ נדחה';
+                alert(`${status}: ${name}`);
+                
             } catch (e) {
                 alert('שגיאה באישור ידני');
                 console.error(e);
