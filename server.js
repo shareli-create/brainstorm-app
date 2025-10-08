@@ -29,12 +29,12 @@ let allSessionsCompleted = false;
 let manualVerifications = {};
 
 // Letter pairs for the task
-const letterPairs = ['צן', 'תד', 'קכ', 'עג', 'יח', 'לט', 'מצ', 'רס', 'סו', 'טר'];
+const letterPairs = ['צנ', 'תד', 'קכ', 'עג', 'יח', 'לט', 'מצ', 'רס', 'סו', 'טר'];
 
 // Verify celebrity names using Wikipedia API - FIXED with timeout and manual review
 async function verifyCelebrity(name, letterPair, retries = 3) {
   try {
-    const validPairs = ['צן', 'תד', 'קכ', 'עג', 'יח', 'לט', 'מצ', 'רס', 'סו', 'טר'];
+    const validPairs = ['צנ', 'תד', 'קכ', 'עג', 'יח', 'לט', 'מצ', 'רס', 'סו', 'טר'];
     
     const nameParts = name.trim().split(/\s+/);
     if (nameParts.length < 2) {
