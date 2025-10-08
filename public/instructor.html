@@ -260,9 +260,9 @@
             alert('20 תלמידים נוספו בהצלחה!');
         }
 
-        async function createGroup() {
+        async function createGroup(customSize = null) {
             const type = document.getElementById('groupType').value;
-            const size = parseInt(document.getElementById('groupSize').value);
+            const size = customSize || parseInt(document.getElementById('groupSize').value);
 
             if (size < 4) {
                 alert('קבוצה חייבת להכיל לפחות 4 חברים');
@@ -303,54 +303,62 @@
             const totalStudents = availableStudents.length;
             const baseGroups = Math.floor(totalStudents / size);
             const remainder = totalStudents % size;
+            
+            // Always distribute remainder across existing groups
+            // No group should have fewer than 4 members
+            const groupSizes = [];
+            for (let i = 0; i < baseGroups; i++) {
+                // First 'remainder' groups get +1 student
+                groupSizes.push(i < remainder ? size + 1 : size);
+            }
+
+            // Build confirmation message
+            const sizeCounts = groupSizes.reduce((acc, s) => {
+                acc[s] = (acc[s] || 0) + 1;
+                return acc;
+            }, {});
 
             let message = `ליצור ${baseGroups} קבוצות ${type === 'regular' ? 'רגילות' : 'נומינליות'}?\n\n`;
-            
-            if (remainder > 0) {
-                message += `• ${baseGroups - remainder} קבוצות של ${size} חברים\n`;
-                message += `• ${remainder} קבוצות של ${size + 1} חברים (עם התלמידים הנוספים)`;
-            } else {
-                message += `כל קבוצה תכיל ${size} חברים`;
-            }
+            Object.entries(sizeCounts).sort((a, b) => b[0] - a[0]).forEach(([s, count]) => {
+                message += `• ${count} קבוצות של ${s} חברים\n`;
+            });
+            message += `\n📊 סה"כ: כל ${totalStudents} התלמידים ישובצו`;
 
             if (!confirm(message)) {
                 return;
             }
 
-            // Create groups with distributed remainder
-            let studentIndex = 0;
-            const createdGroups = [];
+            // Temporarily change the type selector
+            const originalType = document.getElementById('groupType').value;
+            document.getElementById('groupType').value = type;
 
-            for (let i = 0; i < baseGroups; i++) {
-                // First 'remainder' groups get an extra student
-                const groupSize = i < remainder ? size + 1 : size;
-                const memberIds = availableStudents
-                    .slice(studentIndex, studentIndex + groupSize)
-                    .map(s => s.id);
-                
+            // Create groups
+            const createdGroups = [];
+            for (let i = 0; i < groupSizes.length; i++) {
                 try {
-                    await fetch(`${API_URL}/api/groups`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ type, memberIds })
-                    });
-                    createdGroups.push(groupSize);
-                    studentIndex += groupSize;
-                    await new Promise(resolve => setTimeout(resolve, 100));
+                    await createGroup(groupSizes[i]);
+                    createdGroups.push(groupSizes[i]);
+                    await new Promise(resolve => setTimeout(resolve, 150));
                 } catch (error) {
                     console.error('Error creating group:', error);
                 }
             }
 
-            const summary = createdGroups.reduce((acc, size) => {
-                acc[size] = (acc[size] || 0) + 1;
+            // Restore original type
+            document.getElementById('groupType').value = originalType;
+
+            // Summary
+            const summary = createdGroups.reduce((acc, s) => {
+                acc[s] = (acc[s] || 0) + 1;
                 return acc;
             }, {});
 
-            let summaryText = `נוצרו ${baseGroups} קבוצות בהצלחה!\n\n`;
-            Object.entries(summary).forEach(([size, count]) => {
-                summaryText += `• ${count} קבוצות של ${size} חברים\n`;
+            let summaryText = `✅ נוצרו ${createdGroups.length} קבוצות בהצלחה!\n\n`;
+            Object.entries(summary).sort((a, b) => b[0] - a[0]).forEach(([s, count]) => {
+                summaryText += `• ${count} קבוצות של ${s} חברים\n`;
             });
+            const totalAssigned = createdGroups.reduce((sum, s) => sum + s, 0);
+            summaryText += `\n📊 סה"כ: ${totalAssigned} תלמידים שובצו`;
 
             alert(summaryText);
         }
