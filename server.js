@@ -29,12 +29,12 @@ let allSessionsCompleted = false;
 let manualVerifications = {};
 
 // Letter pairs for the task
-const letterPairs = ['צנ', 'תד', 'קכ', 'עג', 'יח', 'לט', 'מצ', 'רס', 'סו', 'טר'];
+const letterPairs = ['צן', 'תד', 'קכ', 'עג', 'יח', 'לט', 'מצ', 'רס', 'סו', 'טר'];
 
-// Verify celebrity names using Wikipedia API - IMPROVED
+// Verify celebrity names using Wikipedia API - FIXED
 async function verifyCelebrity(name, letterPair, retries = 3) {
   try {
-    const validPairs = ['צנ', 'תד', 'קכ', 'עג', 'יח', 'לט', 'מצ', 'רס', 'סו', 'טר'];
+    const validPairs = ['צן', 'תד', 'קכ', 'עג', 'יח', 'לט', 'מצ', 'רס', 'סו', 'טר'];
     
     const nameParts = name.trim().split(/\s+/);
     if (nameParts.length < 2) {
@@ -146,7 +146,24 @@ async function verifyCelebrity(name, letterPair, retries = 3) {
       const searchUrl = `https://he.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*&srlimit=5`;
       
       try {
-        const response = await fetch(searchUrl);
+        const response = await fetch(searchUrl, {
+          headers: {
+            'User-Agent': 'BrainstormApp/1.0 (Educational; Node.js)',
+            'Accept': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          console.error(`Wikipedia API error: ${response.status}`);
+          continue;
+        }
+        
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          console.error(`Invalid content-type: ${contentType}`);
+          continue;
+        }
+        
         const data = await response.json();
         
         if (!data.query || !data.query.search || data.query.search.length === 0) {
@@ -212,7 +229,7 @@ async function verifyCelebrity(name, letterPair, retries = 3) {
           }
         }
       } catch (fetchError) {
-        console.error(`Search failed for query "${query}":`, fetchError);
+        console.error(`Search failed for query "${query}":`, fetchError.message || fetchError);
         continue;
       }
       
@@ -222,7 +239,23 @@ async function verifyCelebrity(name, letterPair, retries = 3) {
     const partialSearchUrl = `https://he.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(name)}&format=json&origin=*&srlimit=10`;
     
     try {
-      const response = await fetch(partialSearchUrl);
+      const response = await fetch(partialSearchUrl, {
+        headers: {
+          'User-Agent': 'BrainstormApp/1.0 (Educational; Node.js)',
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        console.error(`Wikipedia partial search error: ${response.status}`);
+        return { 
+          valid: false, 
+          reason: 'לא נמצא בוויקיפדיה כאדם מפורסם',
+          match: null,
+          description: null
+        };
+      }
+      
       const data = await response.json();
       
       if (data.query && data.query.search && data.query.search.length > 0) {
@@ -250,7 +283,7 @@ async function verifyCelebrity(name, letterPair, retries = 3) {
         }
       }
     } catch (e) {
-      console.error('Partial search error:', e);
+      console.error('Partial search error:', e.message || e);
     }
     
     return { 
@@ -267,7 +300,18 @@ async function verifyCelebrity(name, letterPair, retries = 3) {
       return verifyCelebrity(name, letterPair, retries - 1);
     }
     
-    console.error('Error verifying celebrity:', name, error);
+    console.error('Error verifying celebrity:', name, error.message || error);
+    
+    // If it's a network/JSON error, return a more specific message
+    if (error.message && error.message.includes('invalid json')) {
+      return { 
+        valid: false, 
+        reason: 'שגיאת חיבור לוויקיפדיה - נסה שוב מאוחר יותר',
+        match: null,
+        description: null
+      };
+    }
+    
     return { 
       valid: false, 
       reason: 'שגיאה בבדיקה',
@@ -327,7 +371,6 @@ async function verifyCelebritiesForPair(names, letterPair) {
 
 // REST API endpoints
 
-// ✅ FIXED: Integer ID instead of float
 app.post('/api/students/register', (req, res) => {
   const { name, skipDuplicateCheck } = req.body;
   
@@ -342,7 +385,7 @@ app.post('/api/students/register', (req, res) => {
   }
   
   const student = {
-    id: students.length > 0 ? Math.max(...students.map(s => s.id)) + 1 : 1, // ✅ INTEGER ID
+    id: students.length > 0 ? Math.max(...students.map(s => s.id)) + 1 : 1,
     name: name.trim(),
     registeredAt: new Date()
   };
