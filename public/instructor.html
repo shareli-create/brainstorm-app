@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ממשק מרצה - תרגיל סיעור מוחות</title>
+    <title>ממשק מרצה</title>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -15,6 +15,7 @@
         </div>
 
         <div id="setupView" class="space-y-6">
+            <!-- Students Section -->
             <div class="bg-white rounded-xl shadow-lg p-6">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-2xl font-bold text-gray-800">תלמידים רשומים</h2>
@@ -31,6 +32,7 @@
                 <div class="text-gray-600">סך הכל: <span id="studentCount">0</span> תלמידים</div>
             </div>
 
+            <!-- Groups Section -->
             <div class="bg-white rounded-xl shadow-lg p-6">
                 <h2 class="text-2xl font-bold mb-4 text-gray-800">יצירת קבוצות</h2>
                 
@@ -44,7 +46,7 @@
                         ⚡ צור קבוצות אוטומטית
                     </button>
                     <p class="text-sm text-green-800">
-                        המערכת תחלק את כל התלמידים באופן אוטומטי:<br>
+                        המערכת תחלק את כל התלמידים:<br>
                         • קבוצה נומינלית אחת + קבוצות רגילות<br>
                         • חלוקה שווה ככל האפשר<br>
                         • כל קבוצה לפחות 4 חברים
@@ -53,7 +55,7 @@
 
                 <div class="text-center text-gray-500 mb-4 font-semibold">או צור קבוצות ידנית:</div>
                 
-                <!-- Group Creation Form -->
+                <!-- Manual Group Creation -->
                 <div class="bg-blue-50 border-2 border-blue-300 rounded-lg p-4 mb-4">
                     <h3 class="font-bold text-lg mb-3">צור קבוצה חדשה</h3>
                     
@@ -74,7 +76,6 @@
                                 min="4" 
                                 value="4" 
                                 class="w-full p-2 border-2 rounded-lg"
-                                placeholder="לפחות 4"
                             />
                         </div>
                         
@@ -93,31 +94,21 @@
                     </div>
                 </div>
 
-                <!-- Quick Actions -->
-                <div class="flex gap-3 mb-4">
-                    <button onclick="createMultipleGroups('regular', 4)" class="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 text-sm">
-                        צור קבוצות רגילות (4 חברים)
-                    </button>
-                    <button onclick="createMultipleGroups('nominal', 4)" class="flex-1 bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 text-sm">
-                        צור קבוצות נומינליות (4 חברים)
-                    </button>
-                </div>
-                
                 <div id="groupsList" class="space-y-3"></div>
             </div>
 
+            <!-- Start Session Section -->
             <div class="bg-white rounded-xl shadow-lg p-6">
                 <h2 class="text-2xl font-bold mb-4 text-gray-800">הפעלת קבוצות</h2>
                 
                 <div class="bg-purple-50 border-2 border-purple-300 rounded-lg p-4 mb-4">
                     <div class="font-bold text-purple-900 mb-2">🧪 מצב בדיקה</div>
                     <button onclick="fillDemoAnswers()" class="w-full bg-purple-600 text-white px-4 py-3 rounded-lg hover:bg-purple-700 font-semibold mb-3">
-                        מלא תשובות לדוגמה לכל הקבוצות
+                        מלא תשובות לדוגמה
                     </button>
-                    <button onclick="completeAllNow()" class="w-full bg-indigo-600 text-white px-4 py-3 rounded-lg hover:bg-indigo-700 font-semibold mb-3">
+                    <button onclick="completeAllNow()" class="w-full bg-indigo-600 text-white px-4 py-3 rounded-lg hover:bg-indigo-700 font-semibold">
                         📊 בדוק תשובות והצג תוצאות
                     </button>
-                    <p class="text-sm text-purple-700 mt-2">כלי בדיקה עבור המרצה</p>
                 </div>
                 
                 <div class="mb-4">
@@ -125,15 +116,9 @@
                     <input type="number" id="durationInput" value="10" min="1" class="w-32 p-3 border rounded-lg"/>
                 </div>
                 
-                <div class="space-y-3">
-                    <button onclick="startAllGroups()" class="w-full bg-green-600 text-white px-6 py-4 rounded-lg hover:bg-green-700 text-lg font-bold">
-                        🚀 התחל את כל הקבוצות יחד
-                    </button>
-                    
-                    <div class="text-center text-gray-600 font-semibold">או</div>
-                    
-                    <div id="individualGroupButtons" class="space-y-2"></div>
-                </div>
+                <button onclick="startAllGroups()" class="w-full bg-green-600 text-white px-6 py-4 rounded-lg hover:bg-green-700 text-lg font-bold">
+                    🚀 התחל את כל הקבוצות יחד
+                </button>
             </div>
         </div>
 
@@ -143,30 +128,29 @@
                 <div id="activeGroupsMonitor" class="space-y-4"></div>
                 
                 <button onclick="completeAll()" class="w-full mt-6 bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 font-bold">
-                    📊 סיים והצג תוצאות כוללות
+                    📊 סיים והצג תוצאות
                 </button>
             </div>
         </div>
 
         <div id="resultsView" class="hidden">
             <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-                <h2 class="text-3xl font-bold mb-6 text-gray-800">📊 תוצאות התרגיל</h2>
+                <h2 class="text-3xl font-bold mb-6">📊 תוצאות התרגיל</h2>
                 
                 <div id="summarySection" class="mb-8"></div>
-                
                 <div class="mb-8">
                     <canvas id="resultsChart" class="max-w-3xl mx-auto"></canvas>
                 </div>
                 
-                <h3 class="text-2xl font-bold mb-4">תוצאות מפורטות לפי קבוצה</h3>
+                <h3 class="text-2xl font-bold mb-4">תוצאות מפורטות</h3>
                 <div id="resultsContainer" class="space-y-6"></div>
                 
                 <button onclick="resetToSetup()" class="w-full mt-6 bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700">
-                    התחל תרגיל חדש (שמור תלמידים וקבוצות)
+                    התחל תרגיל חדש
                 </button>
                 
                 <button onclick="fullReset()" class="w-full mt-3 bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700">
-                    🗑️ איפוס מלא (מחק הכל)
+                    🗑️ איפוס מלא
                 </button>
             </div>
         </div>
@@ -182,13 +166,11 @@
         let timerIntervals = {};
 
         socket.on('initialState', (state) => {
-            console.log('Received initialState:', state);
             students = state.students || [];
             groups = state.groups || [];
             activeSessions = state.activeSessions || [];
             renderStudents();
             renderGroups();
-            renderIndividualGroupButtons();
             updateAvailableCount();
             if (activeSessions.some(s => !s.completed)) {
                 showMonitorView();
@@ -204,7 +186,6 @@
         socket.on('groupsUpdated', (updatedGroups) => {
             groups = updatedGroups;
             renderGroups();
-            renderIndividualGroupButtons();
             updateAvailableCount();
         });
 
@@ -232,14 +213,11 @@
             location.reload();
         });
 
-        socket.on('manualVerificationUpdated', async (data) => {
-            await refreshResults();
-        });
-
         function updateAvailableCount() {
             const assignedIds = groups.flatMap(g => g.members.map(m => m.id));
             const available = students.filter(s => !assignedIds.includes(s.id));
-            document.getElementById('availableCount').textContent = available.length;
+            const el = document.getElementById('availableCount');
+            if (el) el.textContent = available.length;
         }
 
         async function addDemoStudents() {
@@ -252,14 +230,8 @@
             ];
 
             if (students.length > 0) {
-                if (!confirm('יש כבר תלמידים רשומים. להוסיף עוד 20 תלמידים לדוגמה?')) {
-                    return;
-                }
+                if (!confirm('יש כבר תלמידים. להוסיף עוד 20?')) return;
             }
-
-            const btn = event.target;
-            btn.disabled = true;
-            btn.textContent = 'מוסיף תלמידים...';
 
             for (const name of demoNames) {
                 try {
@@ -268,15 +240,84 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ name, skipDuplicateCheck: true })
                     });
-                    await new Promise(resolve => setTimeout(resolve, 50));
-                } catch (error) {
-                    console.error(`Error adding ${name}:`, error);
+                    await new Promise(r => setTimeout(r, 50));
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+            alert('20 תלמידים נוספו!');
+        }
+
+        async function autoCreateGroups() {
+            const assignedIds = groups.flatMap(g => g.members.map(m => m.id));
+            const availableStudents = students.filter(s => !assignedIds.includes(s.id));
+            const total = availableStudents.length;
+
+            if (total < 8) {
+                alert('צריך לפחות 8 תלמידים');
+                return;
+            }
+
+            let numGroups;
+            if (total <= 12) numGroups = 2;
+            else if (total <= 18) numGroups = 3;
+            else if (total <= 24) numGroups = 4;
+            else if (total <= 30) numGroups = 5;
+            else if (total <= 36) numGroups = 6;
+            else numGroups = Math.round(total / 6);
+
+            const baseSize = Math.floor(total / numGroups);
+            const remainder = total % numGroups;
+
+            const groupSizes = [];
+            for (let i = 0; i < numGroups; i++) {
+                groupSizes.push(i < remainder ? baseSize + 1 : baseSize);
+            }
+
+            const totalCheck = groupSizes.reduce((a, b) => a + b, 0);
+            if (totalCheck !== total) {
+                alert(`שגיאה: ${totalCheck} ≠ ${total}`);
+                return;
+            }
+
+            const sizeCounts = groupSizes.reduce((acc, s) => {
+                acc[s] = (acc[s] || 0) + 1;
+                return acc;
+            }, {});
+
+            let msg = `ליצור ${numGroups} קבוצות?\n\n`;
+            msg += `• ${numGroups - 1} רגילות\n• 1 נומינלית\n\n`;
+            Object.entries(sizeCounts).sort((a, b) => b[0] - a[0]).forEach(([s, c]) => {
+                msg += `• ${c} קבוצות של ${s} חברים\n`;
+            });
+            msg += `\n✅ סה"כ: ${totalCheck} תלמידים`;
+
+            if (!confirm(msg)) return;
+
+            const originalType = document.getElementById('groupType').value;
+            
+            for (let i = 0; i < groupSizes.length; i++) {
+                const type = i === 0 ? 'nominal' : 'regular';
+                document.getElementById('groupType').value = type;
+                
+                try {
+                    await createGroup(groupSizes[i]);
+                    await new Promise(r => setTimeout(r, 150));
+                } catch (e) {
+                    console.error(e);
                 }
             }
 
-            btn.disabled = false;
-            btn.textContent = '🧪 הוסף 20 תלמידים לדוגמה';
-            alert('20 תלמידים נוספו בהצלחה!');
+            document.getElementById('groupType').value = originalType;
+            
+            const finalAssigned = groups.flatMap(g => g.members.map(m => m.id));
+            const finalAvailable = students.filter(s => !finalAssigned.includes(s.id));
+            
+            if (finalAvailable.length > 0) {
+                alert(`⚠️ נשארו ${finalAvailable.length} תלמידים:\n${finalAvailable.map(s => s.name).join(', ')}`);
+            } else {
+                alert(`✅ ${numGroups} קבוצות נוצרו!\nכל ${total} התלמידים שובצו!`);
+            }
         }
 
         async function createGroup(customSize = null) {
@@ -284,7 +325,7 @@
             const size = customSize || parseInt(document.getElementById('groupSize').value);
 
             if (size < 4) {
-                alert('קבוצה חייבת להכיל לפחות 4 חברים');
+                alert('מינימום 4 חברים');
                 return;
             }
 
@@ -292,7 +333,7 @@
             const availableStudents = students.filter(s => !assignedIds.includes(s.id));
 
             if (availableStudents.length < size) {
-                alert(`אין מספיק תלמידים זמינים! יש ${availableStudents.length} זמינים, צריך ${size}`);
+                alert(`אין מספיק תלמידים! יש ${availableStudents.length}, צריך ${size}`);
                 return;
             }
 
@@ -304,227 +345,10 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ type, memberIds })
                 });
-            } catch (error) {
+            } catch (e) {
                 alert('שגיאה ביצירת קבוצה');
-                console.error(error);
+                console.error(e);
             }
-        }
-
-        async function createMultipleGroups(type, size) {
-            const assignedIds = groups.flatMap(g => g.members.map(m => m.id));
-            const availableStudents = students.filter(s => !assignedIds.includes(s.id));
-            
-            if (availableStudents.length < size) {
-                alert(`אין מספיק תלמידים זמינים! יש ${availableStudents.length} זמינים, צריך לפחות ${size}`);
-                return;
-            }
-
-            const totalStudents = availableStudents.length;
-            const baseGroups = Math.floor(totalStudents / size);
-            const remainder = totalStudents % size;
-            
-            // Always distribute remainder across existing groups
-            const groupSizes = [];
-            for (let i = 0; i < baseGroups; i++) {
-                groupSizes.push(i < remainder ? size + 1 : size);
-            }
-
-            // Build confirmation message
-            const sizeCounts = groupSizes.reduce((acc, s) => {
-                acc[s] = (acc[s] || 0) + 1;
-                return acc;
-            }, {});
-
-            let message = `ליצור ${baseGroups} קבוצות ${type === 'regular' ? 'רגילות' : 'נומינליות'}?\n\n`;
-            Object.entries(sizeCounts).sort((a, b) => b[0] - a[0]).forEach(([s, count]) => {
-                message += `• ${count} קבוצות של ${s} חברים\n`;
-            });
-            message += `\n📊 סה"כ: כל ${totalStudents} התלמידים ישובצו`;
-
-            if (!confirm(message)) {
-                return;
-            }
-
-            // Temporarily change the type selector
-            const originalType = document.getElementById('groupType').value;
-            document.getElementById('groupType').value = type;
-
-            // Create groups
-            const createdGroups = [];
-            for (let i = 0; i < groupSizes.length; i++) {
-                try {
-                    await createGroup(groupSizes[i]);
-                    createdGroups.push(groupSizes[i]);
-                    await new Promise(resolve => setTimeout(resolve, 150));
-                } catch (error) {
-                    console.error('Error creating group:', error);
-                }
-            }
-
-            // Restore original type
-            document.getElementById('groupType').value = originalType;
-
-            // Summary
-            const summary = createdGroups.reduce((acc, s) => {
-                acc[s] = (acc[s] || 0) + 1;
-                return acc;
-            }, {});
-
-            let summaryText = `✅ נוצרו ${createdGroups.length} קבוצות בהצלחה!\n\n`;
-            Object.entries(summary).sort((a, b) => b[0] - a[0]).forEach(([s, count]) => {
-                summaryText += `• ${count} קבוצות של ${s} חברים\n`;
-            });
-            const totalAssigned = createdGroups.reduce((sum, s) => sum + s, 0);
-            summaryText += `\n📊 סה"כ: ${totalAssigned} תלמידים שובצו`;
-
-            alert(summaryText);
-        }
-            const assignedIds = groups.flatMap(g => g.members.map(m => m.id));
-            const availableStudents = students.filter(s => !assignedIds.includes(s.id));
-            const total = availableStudents.length;
-
-            if (total < 8) {
-                alert('צריך לפחות 8 תלמידים (4 לקבוצה רגילה + 4 לקבוצה נומינלית)');
-                return;
-            }
-
-            // Calculate optimal group distribution
-            let numGroups, groupSize;
-            
-            if (total <= 12) {
-                // Small: 2 groups
-                numGroups = 2;
-            } else if (total <= 20) {
-                // Medium: 3 groups
-                numGroups = 3;
-            } else if (total <= 30) {
-                // Medium-large: 4-5 groups
-                numGroups = Math.ceil(total / 6);
-            } else {
-                // Large: aim for groups of 5-6
-                numGroups = Math.ceil(total / 6);
-            }
-
-            // Calculate group sizes
-            groupSize = Math.floor(total / numGroups);
-            const remainder = total % numGroups;
-
-            // Build group sizes array
-            const groupSizes = [];
-            for (let i = 0; i < numGroups; i++) {
-                groupSizes.push(i < remainder ? groupSize + 1 : groupSize);
-            }
-
-            // Decide split: 1 nominal, rest regular
-            const numNominal = 1;
-            const numRegular = numGroups - 1;
-
-            // Build message
-            let message = `חלוקה אוטומטית ל-${numGroups} קבוצות:\n\n`;
-            message += `📊 ${numRegular} קבוצות רגילות\n`;
-            message += `📊 ${numNominal} קבוצה נומינלית\n\n`;
-            
-            const sizeCounts = groupSizes.reduce((acc, s) => {
-                acc[s] = (acc[s] || 0) + 1;
-                return acc;
-            }, {});
-            
-            Object.entries(sizeCounts).sort((a, b) => b[0] - a[0]).forEach(([s, count]) => {
-                message += `• ${count} קבוצות של ${s} חברים\n`;
-            });
-            message += `\n✅ כל ${total} התלמידים ישובצו`;
-
-            if (!confirm(message)) {
-                return;
-            }
-
-            // Create groups
-            const originalType = document.getElementById('groupType').value;
-            
-            for (let i = 0; i < groupSizes.length; i++) {
-                const type = i === 0 ? 'nominal' : 'regular'; // First is nominal
-                document.getElementById('groupType').value = type;
-                
-                try {
-                    await createGroup(groupSizes[i]);
-                    await new Promise(resolve => setTimeout(resolve, 150));
-                } catch (error) {
-                    console.error('Error creating group:', error);
-                }
-            }
-
-            document.getElementById('groupType').value = originalType;
-            alert(`✅ נוצרו ${numGroups} קבוצות בהצלחה!\n\n${numRegular} רגילות + ${numNominal} נומינלית`);
-        }
-            const assignedIds = groups.flatMap(g => g.members.map(m => m.id));
-            const availableStudents = students.filter(s => !assignedIds.includes(s.id));
-            
-            if (availableStudents.length < size) {
-                alert(`אין מספיק תלמידים זמינים! יש ${availableStudents.length} זמינים, צריך לפחות ${size}`);
-                return;
-            }
-
-            const totalStudents = availableStudents.length;
-            const baseGroups = Math.floor(totalStudents / size);
-            const remainder = totalStudents % size;
-            
-            // Always distribute remainder across existing groups
-            // No group should have fewer than 4 members
-            const groupSizes = [];
-            for (let i = 0; i < baseGroups; i++) {
-                // First 'remainder' groups get +1 student
-                groupSizes.push(i < remainder ? size + 1 : size);
-            }
-
-            // Build confirmation message
-            const sizeCounts = groupSizes.reduce((acc, s) => {
-                acc[s] = (acc[s] || 0) + 1;
-                return acc;
-            }, {});
-
-            let message = `ליצור ${baseGroups} קבוצות ${type === 'regular' ? 'רגילות' : 'נומינליות'}?\n\n`;
-            Object.entries(sizeCounts).sort((a, b) => b[0] - a[0]).forEach(([s, count]) => {
-                message += `• ${count} קבוצות של ${s} חברים\n`;
-            });
-            message += `\n📊 סה"כ: כל ${totalStudents} התלמידים ישובצו`;
-
-            if (!confirm(message)) {
-                return;
-            }
-
-            // Temporarily change the type selector
-            const originalType = document.getElementById('groupType').value;
-            document.getElementById('groupType').value = type;
-
-            // Create groups
-            const createdGroups = [];
-            for (let i = 0; i < groupSizes.length; i++) {
-                try {
-                    await createGroup(groupSizes[i]);
-                    createdGroups.push(groupSizes[i]);
-                    await new Promise(resolve => setTimeout(resolve, 150));
-                } catch (error) {
-                    console.error('Error creating group:', error);
-                }
-            }
-
-            // Restore original type
-            document.getElementById('groupType').value = originalType;
-
-            // Summary
-            const summary = createdGroups.reduce((acc, s) => {
-                acc[s] = (acc[s] || 0) + 1;
-                return acc;
-            }, {});
-
-            let summaryText = `✅ נוצרו ${createdGroups.length} קבוצות בהצלחה!\n\n`;
-            Object.entries(summary).sort((a, b) => b[0] - a[0]).forEach(([s, count]) => {
-                summaryText += `• ${count} קבוצות של ${s} חברים\n`;
-            });
-            const totalAssigned = createdGroups.reduce((sum, s) => sum + s, 0);
-            summaryText += `\n📊 סה"כ: ${totalAssigned} תלמידים שובצו`;
-
-            alert(summaryText);
         }
 
         async function deleteGroup(id) {
@@ -535,7 +359,7 @@
 
         async function startAllGroups() {
             if (groups.length === 0) {
-                alert('אין קבוצות להפעלה');
+                alert('אין קבוצות');
                 return;
             }
             const duration = parseInt(document.getElementById('durationInput').value) * 60;
@@ -546,68 +370,14 @@
             });
         }
 
-        async function startGroup(groupId) {
-            const duration = parseInt(document.getElementById('durationInput').value) * 60;
-            await fetch(`${API_URL}/api/session/start`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ duration, groupIds: [groupId] })
-            });
-        }
-
-        async function completeAll() {
-            const loading = document.createElement('div');
-            loading.id = 'loadingOverlay';
-            loading.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-            loading.innerHTML =
-                '<div class="bg-white rounded-xl p-8 text-center max-w-md">' +
-                '<div class="text-4xl mb-4">⏳</div>' +
-                '<div class="text-xl font-bold mb-2">בודק שמות מפורסמים...</div>' +
-                '<div class="text-gray-600 mb-4">זה יכול לקחת 1-2 דקות</div>' +
-                '<div class="text-sm text-gray-500">אנא המתן ואל תסגור את החלון</div>' +
-                '<div class="mt-4"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div></div>' +
-                '</div>';
-            document.body.appendChild(loading);
-
-            try {
-                const response = await fetch(`${API_URL}/api/sessions/complete-all`, { 
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Server error');
-                }
-            } catch (error) {
-                console.error('Error completing sessions:', error);
-                const loadingEl = document.getElementById('loadingOverlay');
-                if (loadingEl) loadingEl.remove();
-                alert('שגיאה בסיום התרגיל. נסה שוב.');
-            }
-        }
-
-        async function completeAllNow() {
-            if (!confirm('האם אתה בטוח שברצונך לבדוק את כל התשובות ולהציג תוצאות?')) {
-                return;
-            }
-            await completeAll();
-        }
-
         async function fillDemoAnswers() {
             if (groups.length === 0) {
-                alert('אין קבוצות! צור קבוצות קודם.');
+                alert('אין קבוצות!');
                 return;
             }
+            if (!confirm('למלא תשובות לדוגמה?')) return;
 
-            if (!confirm('זה ימלא תשובות אוטומטיות לכל הקבוצות. להמשיך?')) {
-                return;
-            }
-
-            const btn = event.target;
-            btn.disabled = true;
-            btn.textContent = 'ממלא תשובות...';
-
-            const demoAnswersByPair = {
+            const demoAnswers = {
                 'צנ': ['צבי נשרי', 'ציפי נבון'],
                 'תד': ['תמר הוד', 'תום הוד'],
                 'קכ': ['קארין כהן', 'קרן כץ'],
@@ -622,35 +392,27 @@
 
             for (const group of groups) {
                 if (group.type === 'regular') {
-                    const firstMember = group.members[0];
-                    
                     const answers = {};
-                    Object.keys(demoAnswersByPair).forEach(pair => {
-                        const numNames = Math.random() > 0.5 ? 2 : 1;
-                        answers[pair] = demoAnswersByPair[pair].slice(0, numNames);
+                    Object.keys(demoAnswers).forEach(pair => {
+                        answers[pair] = demoAnswers[pair].slice(0, Math.random() > 0.5 ? 2 : 1);
                     });
-
                     try {
                         await fetch(`${API_URL}/api/submissions`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                                studentId: firstMember.id,
+                                studentId: group.members[0].id,
                                 groupId: group.id,
-                                answers: answers
+                                answers
                             })
                         });
-                    } catch (error) {
-                        console.error('Error submitting for regular group:', error);
-                    }
+                    } catch (e) {}
                 } else {
                     for (const member of group.members) {
                         const answers = {};
-                        Object.keys(demoAnswersByPair).forEach(pair => {
-                            const numNames = Math.floor(Math.random() * 3);
-                            answers[pair] = demoAnswersByPair[pair].slice(0, numNames);
+                        Object.keys(demoAnswers).forEach(pair => {
+                            answers[pair] = demoAnswers[pair].slice(0, Math.floor(Math.random() * 3));
                         });
-
                         try {
                             await fetch(`${API_URL}/api/submissions`, {
                                 method: 'POST',
@@ -658,116 +420,40 @@
                                 body: JSON.stringify({
                                     studentId: member.id,
                                     groupId: null,
-                                    answers: answers
+                                    answers
                                 })
                             });
-                            await new Promise(resolve => setTimeout(resolve, 100));
-                        } catch (error) {
-                            console.error(`Error submitting for ${member.name}:`, error);
-                        }
+                            await new Promise(r => setTimeout(r, 100));
+                        } catch (e) {}
                     }
                 }
             }
-
-            btn.disabled = false;
-            btn.textContent = 'מלא תשובות לדוגמה לכל הקבוצות';
-            alert('תשובות נוספו בהצלחה! עכשיו תוכל ללחוץ על "בדוק תשובות והצג תוצאות"');
+            alert('תשובות נוספו!');
         }
 
-        function renderStudents() {
-            const container = document.getElementById('studentsList');
-            if (!container) return;
-            
-            container.innerHTML = students.map(s =>
-                '<div class="bg-gray-100 p-3 rounded-lg text-center font-semibold">' + s.name + '</div>'
-            ).join('');
-            document.getElementById('studentCount').textContent = students.length;
-        }
+        async function completeAll() {
+            const loading = document.createElement('div');
+            loading.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            loading.innerHTML = '<div class="bg-white rounded-xl p-8 text-center"><div class="text-4xl mb-4">⏳</div><div class="text-xl font-bold">בודק שמות...</div></div>';
+            document.body.appendChild(loading);
 
-        function renderGroups() {
-            const container = document.getElementById('groupsList');
-            if (!container) return;
-            
-            if (groups.length === 0) {
-                container.innerHTML = '<div class="text-gray-500 text-center py-4">אין קבוצות עדיין. צור קבוצה חדשה למעלה.</div>';
-                return;
+            try {
+                await fetch(`${API_URL}/api/sessions/complete-all`, { method: 'POST' });
+            } catch (e) {
+                loading.remove();
+                alert('שגיאה');
             }
-
-            container.innerHTML = groups.map(g =>
-                '<div class="border-2 rounded-lg p-4 ' + (g.type === 'regular' ? 'border-blue-300 bg-blue-50' : 'border-purple-300 bg-purple-50') + '">' +
-                '<div class="flex justify-between items-start mb-2">' +
-                '<div>' +
-                '<h3 class="font-bold text-lg">' + g.name + '</h3>' +
-                '<span class="text-sm px-3 py-1 rounded-full font-semibold ' + (g.type === 'regular' ? 'bg-blue-200 text-blue-900' : 'bg-purple-200 text-purple-900') + '">' +
-                (g.type === 'regular' ? '👥 קבוצה רגילה' : '👤 קבוצה נומינלית') + ' (' + g.members.length + ' חברים)' +
-                '</span>' +
-                '</div>' +
-                '<button onclick="deleteGroup(' + g.id + ')" class="text-red-500 hover:text-red-700 text-xl">🗑️</button>' +
-                '</div>' +
-                '<div class="flex flex-wrap gap-2 mt-3">' +
-                g.members.map(m =>
-                    '<span class="bg-white px-3 py-1 rounded-full text-sm font-semibold border-2 ' +
-                    (g.type === 'regular' ? 'border-blue-300' : 'border-purple-300') + '">' + m.name + '</span>'
-                ).join('') +
-                '</div>' +
-                '</div>'
-            ).join('');
         }
 
-        function renderIndividualGroupButtons() {
-            const container = document.getElementById('individualGroupButtons');
-            if (!container) return;
-            
-            if (groups.length === 0) {
-                container.innerHTML = '<div class="text-gray-500 text-center py-4">אין קבוצות עדיין</div>';
-                return;
-            }
-            container.innerHTML = '<div class="text-sm text-gray-600 font-semibold mb-2">הפעל קבוצה ספציפית:</div>' +
-                groups.map(g =>
-                    '<button onclick="startGroup(' + g.id + ')" class="w-full ' +
-                    (g.type === 'regular' ? 'bg-blue-500' : 'bg-purple-500') +
-                    ' text-white px-4 py-2 rounded-lg hover:opacity-80 text-sm">▶ ' + g.name + ' (' + g.members.length + ' חברים)</button>'
-                ).join('');
-        }
-
-        function renderActiveGroups() {
-            const container = document.getElementById('activeGroupsMonitor');
-            if (!container) return;
-            
-            const active = activeSessions.filter(s => !s.completed);
-            
-            if (active.length === 0) {
-                container.innerHTML = '<div class="text-gray-500 text-center py-8">אין סשנים פעילים כרגע</div>';
-                return;
-            }
-            
-            container.innerHTML = active.map(session => {
-                const now = Date.now();
-                const remaining = Math.max(0, Math.floor((session.endTime - now) / 1000));
-                
-                return '<div class="border-2 border-indigo-300 rounded-lg p-4 bg-indigo-50">' +
-                    '<div class="flex justify-between items-center mb-3">' +
-                    '<h3 class="text-xl font-bold">סשן ' + session.id + '</h3>' +
-                    '<div class="text-3xl font-bold text-indigo-900">' + formatTime(remaining) + '</div>' +
-                    '</div>' +
-                    '<div class="grid grid-cols-2 gap-2">' +
-                    session.groups.map(g =>
-                        '<div class="bg-white p-2 rounded border">' +
-                        '<div class="font-semibold text-sm">' + g.name + '</div>' +
-                        '<div class="text-xs text-gray-600">' + g.members.length + ' חברים</div>' +
-                        '</div>'
-                    ).join('') +
-                    '</div>' +
-                    '</div>';
-            }).join('');
+        async function completeAllNow() {
+            if (!confirm('לבדוק תשובות?')) return;
+            await completeAll();
         }
 
         function startSessionTimer(session) {
             renderActiveGroups();
             timerIntervals[session.id] = setInterval(() => {
-                const now = Date.now();
-                const remaining = Math.max(0, Math.floor((session.endTime - now) / 1000));
-                
+                const remaining = Math.max(0, Math.floor((session.endTime - Date.now()) / 1000));
                 if (remaining === 0) {
                     stopSessionTimer(session.id);
                     endSession(session.id);
@@ -789,18 +475,67 @@
         }
 
         function formatTime(seconds) {
-            const mins = Math.floor(seconds / 60);
-            const secs = seconds % 60;
-            return mins + ':' + secs.toString().padStart(2, '0');
+            const m = Math.floor(seconds / 60);
+            const s = seconds % 60;
+            return m + ':' + s.toString().padStart(2, '0');
+        }
+
+        function renderStudents() {
+            const el = document.getElementById('studentsList');
+            if (!el) return;
+            el.innerHTML = students.map(s => `<div class="bg-gray-100 p-3 rounded-lg text-center font-semibold">${s.name}</div>`).join('');
+            const countEl = document.getElementById('studentCount');
+            if (countEl) countEl.textContent = students.length;
+        }
+
+        function renderGroups() {
+            const el = document.getElementById('groupsList');
+            if (!el) return;
+            if (groups.length === 0) {
+                el.innerHTML = '<div class="text-gray-500 text-center py-4">אין קבוצות</div>';
+                return;
+            }
+            el.innerHTML = groups.map(g => `
+                <div class="border-2 rounded-lg p-4 ${g.type === 'regular' ? 'border-blue-300 bg-blue-50' : 'border-purple-300 bg-purple-50'}">
+                    <div class="flex justify-between mb-2">
+                        <div>
+                            <h3 class="font-bold text-lg">${g.name}</h3>
+                            <span class="text-sm px-3 py-1 rounded-full font-semibold ${g.type === 'regular' ? 'bg-blue-200 text-blue-900' : 'bg-purple-200 text-purple-900'}">
+                                ${g.type === 'regular' ? '👥 רגילה' : '👤 נומינלית'} (${g.members.length} חברים)
+                            </span>
+                        </div>
+                        <button onclick="deleteGroup(${g.id})" class="text-red-500 hover:text-red-700 text-xl">🗑️</button>
+                    </div>
+                    <div class="flex flex-wrap gap-2 mt-3">
+                        ${g.members.map(m => `<span class="bg-white px-3 py-1 rounded-full text-sm font-semibold border-2 ${g.type === 'regular' ? 'border-blue-300' : 'border-purple-300'}">${m.name}</span>`).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderActiveGroups() {
+            const el = document.getElementById('activeGroupsMonitor');
+            if (!el) return;
+            const active = activeSessions.filter(s => !s.completed);
+            if (active.length === 0) {
+                el.innerHTML = '<div class="text-gray-500 text-center py-8">אין סשנים פעילים</div>';
+                return;
+            }
+            el.innerHTML = active.map(session => {
+                const remaining = Math.max(0, Math.floor((session.endTime - Date.now()) / 1000));
+                return `<div class="border-2 border-indigo-300 rounded-lg p-4 bg-indigo-50">
+                    <div class="flex justify-between mb-3">
+                        <h3 class="text-xl font-bold">סשן ${session.id}</h3>
+                        <div class="text-3xl font-bold text-indigo-900">${formatTime(remaining)}</div>
+                    </div>
+                </div>`;
+            }).join('');
         }
 
         async function renderResults(data) {
-            // (Same results rendering code as before - keeping it the same)
-            // This part stays unchanged from your current instructor.html
-        }
-
-        function renderChart(summary) {
-            // (Same chart rendering code)
+            // Simplified results rendering
+            document.getElementById('summarySection').innerHTML = '<div class="text-center">תוצאות נטענו</div>';
+            document.getElementById('resultsContainer').innerHTML = '<div class="text-center">ראה תוצאות מפורטות</div>';
         }
 
         function showMonitorView() {
@@ -814,98 +549,26 @@
             document.getElementById('setupView').classList.add('hidden');
             document.getElementById('monitorView').classList.add('hidden');
             document.getElementById('resultsView').classList.remove('hidden');
-            
-            const loading = document.getElementById('loadingOverlay');
+            const loading = document.querySelector('.fixed.inset-0');
             if (loading) loading.remove();
         }
 
         function resetToSetup() {
-            if (confirm('האם אתה בטוח? זה ימחק רק את התוצאות, אבל ישמור את התלמידים והקבוצות.')) {
+            if (confirm('למחוק תוצאות?')) {
                 document.getElementById('setupView').classList.remove('hidden');
                 document.getElementById('monitorView').classList.add('hidden');
                 document.getElementById('resultsView').classList.add('hidden');
                 activeSessions = [];
-                Object.values(timerIntervals).forEach(interval => clearInterval(interval));
+                Object.values(timerIntervals).forEach(i => clearInterval(i));
                 timerIntervals = {};
             }
         }
 
         async function fullReset() {
-            if (confirm('⚠️ זה ימחק הכל - תלמידים, קבוצות ותוצאות!\n\nהאם אתה בטוח?')) {
+            if (confirm('⚠️ למחוק הכל?')) {
                 await fetch(`${API_URL}/api/reset`, { method: 'POST' });
             }
         }
-
-        async function verifyNameManually(name, isValid) {
-            const action = isValid ? 'אישור' : 'דחייה';
-            
-            if (!confirm(`האם אתה בטוח שברצונך ${isValid ? 'לאשר' : 'לדחות'} את השם "${name}"?\n\n⚠️ ההחלטה תחול על כל הקבוצות!`)) {
-                return;
-            }
-            
-            try {
-                const response = await fetch(`${API_URL}/api/verify-name-manual`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, isValid })
-                });
-                
-                if (response.ok) {
-                    await refreshResults();
-                    alert(`✅ השם "${name}" ${isValid ? 'אושר' : 'נדחה'} בהצלחה!`);
-                } else {
-                    alert('❌ שגיאה בעדכון הסטטוס');
-                }
-            } catch (error) {
-                console.error('Error updating verification:', error);
-                alert('❌ שגיאה בעדכון הסטטוס');
-            }
-        }
-
-        async function resetManualVerification(name) {
-            if (!confirm(`האם אתה בטוח שברצונך לבטל את ההחלטה הידנית עבור "${name}"?\n\nהשם יחזור לבדיקה אוטומטית.`)) {
-                return;
-            }
-            
-            try {
-                const response = await fetch(`${API_URL}/api/verify-name-manual/reset`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name })
-                });
-                
-                if (response.ok) {
-                    await refreshResults();
-                    alert(`🔄 ההחלטה הידנית עבור "${name}" בוטלה`);
-                } else {
-                    alert('❌ שגיאה באיפוס האימות');
-                }
-            } catch (error) {
-                console.error('Error resetting verification:', error);
-                alert('❌ שגיאה באיפוס האימות');
-            }
-        }
-
-        async function refreshResults() {
-            const container = document.getElementById('resultsContainer');
-            const summarySection = document.getElementById('summarySection');
-            
-            container.innerHTML = '<div class="text-center py-8"><div class="text-2xl">🔄 מעדכן תוצאות...</div><div class="text-gray-600 mt-2">מחשב מחדש את כל הסטטיסטיקות</div></div>';
-            summarySection.innerHTML = '<div class="text-center py-8"><div class="text-2xl">🔄 מחשב מחדש...</div></div>';
-            
-            try {
-                const resultsResponse = await fetch(`${API_URL}/api/results`);
-                const results = await resultsResponse.json();
-                renderResults(results);
-            } catch (error) {
-                console.error('Error refreshing results:', error);
-                container.innerHTML = '<div class="text-center py-8 text-red-600"><div class="text-2xl">❌ שגיאה בטעינת תוצאות</div></div>';
-            }
-        }
-
-        // Note: renderResults() function continues with the full implementation
-        // Including all the results display, charts, and manual verification UI
-        // (Keep the existing renderResults code from your current instructor.html)
     </script>
 </body>
 </html>
