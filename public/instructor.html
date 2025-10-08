@@ -295,23 +295,64 @@
             const assignedIds = groups.flatMap(g => g.members.map(m => m.id));
             const availableStudents = students.filter(s => !assignedIds.includes(s.id));
             
-            const numGroups = Math.floor(availableStudents.length / size);
+            if (availableStudents.length < size) {
+                alert(`אין מספיק תלמידים זמינים! יש ${availableStudents.length} זמינים, צריך לפחות ${size}`);
+                return;
+            }
+
+            const totalStudents = availableStudents.length;
+            const baseGroups = Math.floor(totalStudents / size);
+            const remainder = totalStudents % size;
+
+            let message = `ליצור ${baseGroups} קבוצות ${type === 'regular' ? 'רגילות' : 'נומינליות'}?\n\n`;
             
-            if (numGroups === 0) {
-                alert(`אין מספיק תלמידים זמינים ליצירת קבוצה של ${size} חברים`);
+            if (remainder > 0) {
+                message += `• ${baseGroups - remainder} קבוצות של ${size} חברים\n`;
+                message += `• ${remainder} קבוצות של ${size + 1} חברים (עם התלמידים הנוספים)`;
+            } else {
+                message += `כל קבוצה תכיל ${size} חברים`;
+            }
+
+            if (!confirm(message)) {
                 return;
             }
 
-            if (!confirm(`ליצור ${numGroups} קבוצות ${type === 'regular' ? 'רגילות' : 'נומינליות'} של ${size} חברים כל אחת?`)) {
-                return;
+            // Create groups with distributed remainder
+            let studentIndex = 0;
+            const createdGroups = [];
+
+            for (let i = 0; i < baseGroups; i++) {
+                // First 'remainder' groups get an extra student
+                const groupSize = i < remainder ? size + 1 : size;
+                const memberIds = availableStudents
+                    .slice(studentIndex, studentIndex + groupSize)
+                    .map(s => s.id);
+                
+                try {
+                    await fetch(`${API_URL}/api/groups`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type, memberIds })
+                    });
+                    createdGroups.push(groupSize);
+                    studentIndex += groupSize;
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                } catch (error) {
+                    console.error('Error creating group:', error);
+                }
             }
 
-            for (let i = 0; i < numGroups; i++) {
-                await createGroup();
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
+            const summary = createdGroups.reduce((acc, size) => {
+                acc[size] = (acc[size] || 0) + 1;
+                return acc;
+            }, {});
 
-            alert(`נוצרו ${numGroups} קבוצות בהצלחה!`);
+            let summaryText = `נוצרו ${baseGroups} קבוצות בהצלחה!\n\n`;
+            Object.entries(summary).forEach(([size, count]) => {
+                summaryText += `• ${count} קבוצות של ${size} חברים\n`;
+            });
+
+            alert(summaryText);
         }
 
         async function deleteGroup(id) {
