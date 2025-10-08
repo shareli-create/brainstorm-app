@@ -21,7 +21,7 @@
                     <h2 class="text-2xl font-bold text-gray-800">תלמידים רשומים</h2>
                     <div class="flex gap-2">
                         <button onclick="addDemoStudents()" class="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 text-sm">
-                            🧪 הוסף 20 תלמידים לדוגמה
+                            🧪 הוסף 20 תלמידים להדגמה
                         </button>
                         <a href="register.html" target="_blank" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
                             🔗 פתח דף רישום
@@ -104,7 +104,7 @@
                 <div class="bg-purple-50 border-2 border-purple-300 rounded-lg p-4 mb-4">
                     <div class="font-bold text-purple-900 mb-2">🧪 מצב בדיקה</div>
                     <button onclick="fillDemoAnswers()" class="w-full bg-purple-600 text-white px-4 py-3 rounded-lg hover:bg-purple-700 font-semibold mb-3">
-                        מלא תשובות לדוגמה
+                        מלא תשובות להדגמה
                     </button>
                     <button onclick="completeAllNow()" class="w-full bg-indigo-600 text-white px-4 py-3 rounded-lg hover:bg-indigo-700 font-semibold">
                         📊 בדוק תשובות והצג תוצאות
@@ -213,11 +213,6 @@
             location.reload();
         });
 
-        // --- NEW: Manual verification events ---
-        socket.on('manualVerificationUpdated', async (data) => {
-            await refreshResults();
-        });
-
         function updateAvailableCount() {
             const assignedIds = groups.flatMap(g => g.members.map(m => m.id));
             const available = students.filter(s => !assignedIds.includes(s.id));
@@ -228,7 +223,7 @@
         async function addDemoStudents() {
             const demoNames = [
                 'אבי כהן', 'בני לוי', 'גלי מזרחי', 'דני אברהם',
-                'הדר יוסף', 'ונוס הוד', 'זוהר משה', 'חני שרה',
+                'הדר יוסף', 'ונוס דוד', 'זוהר משה', 'חני שרה',
                 'טלי יעקב', 'יעל רחל', 'כרמל אהרון', 'לירון מריה',
                 'מיכל שמעון', 'נועה לאה', 'סתיו ראובן', 'עדי שמחה',
                 'פנינה גד', 'צביה אשר', 'קרן נפתלי', 'רונית דן'
@@ -380,16 +375,16 @@
                 alert('אין קבוצות!');
                 return;
             }
-            if (!confirm('למלא תשובות לדוגמה?')) return;
+            if (!confirm('למלא תשובות להדגמה?')) return;
 
             const demoAnswers = {
-                'צנ': ['צבי נשרי', 'ציפי נבון'],
-                'תד': ['תמר הוד', 'תום הוד'],
+                'צן': ['צבי נשרי', 'צפורה נבון'],
+                'תד': ['תמר דוד', 'תון דוד'],
                 'קכ': ['קארין כהן', 'קרן כץ'],
-                'עג': ['עמוס גילן', 'עדי גינזבורג'],
+                'עג': ['עמוס גילן', 'עדי בינזגורג'],
                 'יח': ['יהודה חיון', 'יעל חסון'],
                 'לט': ['לירון טבת', 'לאה טל'],
-                'מץ': ['משה צור', 'מיכל צפון'],
+                'מצ': ['משה צור', 'מיכל צפון'],
                 'רס': ['רון סער', 'רונית סלע'],
                 'סו': ['סיגל ויצמן', 'סמי ועקנין'],
                 'טר': ['טל רז', 'טלי רביב']
@@ -506,4 +501,336 @@
                         <div>
                             <h3 class="font-bold text-lg">${g.name}</h3>
                             <span class="text-sm px-3 py-1 rounded-full font-semibold ${g.type === 'regular' ? 'bg-blue-200 text-blue-900' : 'bg-purple-200 text-purple-900'}">
-                                ${g.type === 'regular' ? '👥 ר
+                                ${g.type === 'regular' ? '👥 רגילה' : '👤 נומינלית'} (${g.members.length} חברים)
+                            </span>
+                        </div>
+                        <button onclick="deleteGroup(${g.id})" class="text-red-500 hover:text-red-700 text-xl">🗑️</button>
+                    </div>
+                    <div class="flex flex-wrap gap-2 mt-3">
+                        ${g.members.map(m => `<span class="bg-white px-3 py-1 rounded-full text-sm font-semibold border-2 ${g.type === 'regular' ? 'border-blue-300' : 'border-purple-300'}">${m.name}</span>`).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderActiveGroups() {
+            const el = document.getElementById('activeGroupsMonitor');
+            if (!el) return;
+            const active = activeSessions.filter(s => !s.completed);
+            if (active.length === 0) {
+                el.innerHTML = '<div class="text-gray-500 text-center py-8">אין סשנים פעילים</div>';
+                return;
+            }
+            el.innerHTML = active.map(session => {
+                const remaining = Math.max(0, Math.floor((session.endTime - Date.now()) / 1000));
+                return `<div class="border-2 border-indigo-300 rounded-lg p-4 bg-indigo-50">
+                    <div class="flex justify-between mb-3">
+                        <h3 class="text-xl font-bold">סשן ${session.id}</h3>
+                        <div class="text-3xl font-bold text-indigo-900">${formatTime(remaining)}</div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        async function renderResults(data) {
+            const { groupResults, summary } = data;
+            
+            // Summary Section
+            const summaryHTML = `
+                <div class="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6 border-2 border-indigo-200">
+                    <h3 class="text-2xl font-bold mb-4 text-indigo-900">📊 סיכום כללי</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Regular Groups -->
+                        <div class="bg-white rounded-lg p-4 border-2 border-blue-300">
+                            <h4 class="font-bold text-lg mb-3 text-blue-900">👥 קבוצות רגילות</h4>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">מספר קבוצות:</span>
+                                    <span class="font-bold">${summary.regular.groupCount}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">סה"כ חברים:</span>
+                                    <span class="font-bold">${summary.regular.memberCount}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">שמות מאומתים:</span>
+                                    <span class="font-bold text-green-600">${summary.regular.verifiedNames}</span>
+                                </div>
+                                <div class="flex justify-between border-t-2 pt-2">
+                                    <span class="text-gray-600">ממוצע לחבר:</span>
+                                    <span class="font-bold text-blue-600">${summary.regular.avgPerMember.toFixed(2)}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">ממוצע לקבוצה:</span>
+                                    <span class="font-bold text-blue-600">${summary.regular.avgPerGroup.toFixed(2)}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Nominal Groups -->
+                        <div class="bg-white rounded-lg p-4 border-2 border-purple-300">
+                            <h4 class="font-bold text-lg mb-3 text-purple-900">👤 קבוצות נומינליות</h4>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">מספר קבוצות:</span>
+                                    <span class="font-bold">${summary.nominal.groupCount}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">סה"כ חברים:</span>
+                                    <span class="font-bold">${summary.nominal.memberCount}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">שמות מאומתים:</span>
+                                    <span class="font-bold text-green-600">${summary.nominal.verifiedNames}</span>
+                                </div>
+                                <div class="flex justify-between border-t-2 pt-2">
+                                    <span class="text-gray-600">ממוצע לחבר:</span>
+                                    <span class="font-bold text-purple-600">${summary.nominal.avgPerMember.toFixed(2)}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">ממוצע לקבוצה:</span>
+                                    <span class="font-bold text-purple-600">${summary.nominal.avgPerGroup.toFixed(2)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('summarySection').innerHTML = summaryHTML;
+            
+            // Chart
+            if (window.myChart) window.myChart.destroy();
+            
+            const ctx = document.getElementById('resultsChart').getContext('2d');
+            window.myChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['ממוצע לחבר', 'ממוצע לקבוצה'],
+                    datasets: [
+                        {
+                            label: 'קבוצות רגילות',
+                            data: [summary.regular.avgPerMember, summary.regular.avgPerGroup],
+                            backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            borderWidth: 2
+                        },
+                        {
+                            label: 'קבוצות נומינליות',
+                            data: [summary.nominal.avgPerMember, summary.nominal.avgPerGroup],
+                            backgroundColor: 'rgba(168, 85, 247, 0.8)',
+                            borderColor: 'rgba(168, 85, 247, 1)',
+                            borderWidth: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'מספר שמות מאומתים',
+                                font: { size: 14, weight: 'bold' }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: { font: { size: 14 } }
+                        },
+                        title: {
+                            display: true,
+                            text: 'השוואה בין סוגי קבוצות',
+                            font: { size: 18, weight: 'bold' }
+                        }
+                    }
+                }
+            });
+            
+            // Detailed Results
+            let resultsHTML = '';
+            
+            groupResults.forEach(group => {
+                const verifiedCount = group.verifiedNames;
+                const needsReviewCount = Object.values(group.verificationResults).filter(v => v.valid === 'needs_manual_review').length;
+                const invalidCount = group.totalNames - verifiedCount - needsReviewCount;
+                
+                resultsHTML += `
+                    <div class="bg-white rounded-xl p-6 border-2 ${group.type === 'regular' ? 'border-blue-300' : 'border-purple-300'}">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xl font-bold ${group.type === 'regular' ? 'text-blue-900' : 'text-purple-900'}">
+                                ${group.groupName}
+                            </h3>
+                            <div class="text-sm">
+                                <span class="px-3 py-1 rounded-full font-semibold ${group.type === 'regular' ? 'bg-blue-100 text-blue-900' : 'bg-purple-100 text-purple-900'}">
+                                    ${group.type === 'regular' ? '👥 רגילה' : '👤 נומינלית'} (${group.memberCount} חברים)
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-4 gap-3 mb-4">
+                            <div class="bg-green-50 p-3 rounded-lg text-center border-2 border-green-200">
+                                <div class="text-2xl font-bold text-green-700">${verifiedCount}</div>
+                                <div class="text-xs text-green-600">מאומתים ✓</div>
+                            </div>
+                            <div class="bg-yellow-50 p-3 rounded-lg text-center border-2 border-yellow-200">
+                                <div class="text-2xl font-bold text-yellow-700">${needsReviewCount}</div>
+                                <div class="text-xs text-yellow-600">דורש בדיקה ⚠️</div>
+                            </div>
+                            <div class="bg-red-50 p-3 rounded-lg text-center border-2 border-red-200">
+                                <div class="text-2xl font-bold text-red-700">${invalidCount}</div>
+                                <div class="text-xs text-red-600">לא תקין ✗</div>
+                            </div>
+                            <div class="bg-indigo-50 p-3 rounded-lg text-center border-2 border-indigo-200">
+                                <div class="text-2xl font-bold text-indigo-700">${group.avgPerMember.toFixed(2)}</div>
+                                <div class="text-xs text-indigo-600">ממוצע לחבר</div>
+                            </div>
+                        </div>
+                        
+                        ${group.type === 'regular' && group.activeMember ? `
+                            <div class="bg-blue-50 p-3 rounded-lg mb-4 border border-blue-200">
+                                <span class="font-semibold text-blue-900">👤 ממלא בקבוצה:</span>
+                                <span class="text-blue-700">${group.activeMember}</span>
+                            </div>
+                        ` : ''}
+                        
+                        ${group.type === 'nominal' ? `
+                            <div class="bg-purple-50 p-4 rounded-lg mb-4 border border-purple-200">
+                                <h4 class="font-bold text-purple-900 mb-2">תרומת חברים:</h4>
+                                <div class="grid grid-cols-2 gap-2">
+                                    ${Object.entries(group.memberVerifiedCounts).map(([name, count]) => `
+                                        <div class="bg-white p-2 rounded border border-purple-200">
+                                            <span class="font-semibold text-sm">${name}:</span>
+                                            <span class="text-purple-700 font-bold">${count} מאומתים</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        <div class="space-y-2">
+                            <h4 class="font-bold text-gray-800 mb-3">📝 רשימת שמות:</h4>
+                            ${group.names.map(name => {
+                                const verification = group.verificationResults[name];
+                                if (!verification) {
+                                    return `
+                                        <div class="p-3 rounded-lg bg-gray-100 border-2 border-gray-300">
+                                            <div class="flex justify-between items-center">
+                                                <span class="font-semibold">${name}</span>
+                                                <span class="text-gray-500">לא נבדק</span>
+                                            </div>
+                                        </div>
+                                    `;
+                                }
+                                
+                                if (verification.valid === true) {
+                                    return `
+                                        <div class="p-3 rounded-lg bg-green-50 border-2 border-green-300">
+                                            <div class="flex justify-between items-center mb-1">
+                                                <span class="font-semibold text-green-900">${name}</span>
+                                                <span class="text-green-700 font-bold">✓ מאומת</span>
+                                            </div>
+                                            ${verification.description ? `
+                                                <div class="text-xs text-green-700 mt-2 p-2 bg-green-100 rounded">
+                                                    ${verification.description}
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                    `;
+                                } else if (verification.valid === 'needs_manual_review') {
+                                    return `
+                                        <div class="p-3 rounded-lg bg-yellow-50 border-2 border-yellow-300">
+                                            <div class="flex justify-between items-center mb-2">
+                                                <span class="font-semibold text-yellow-900">${name}</span>
+                                                <span class="text-yellow-700 font-bold">⚠️ דורש בדיקה</span>
+                                            </div>
+                                            <div class="text-xs text-yellow-700 mb-3">${verification.reason}</div>
+                                            <div class="flex gap-2">
+                                                <button onclick="manualVerify('${name}', true)" class="flex-1 bg-green-500 text-white px-3 py-2 rounded hover:bg-green-600 text-sm font-bold">
+                                                    ✓ אשר
+                                                </button>
+                                                <button onclick="manualVerify('${name}', false)" class="flex-1 bg-red-500 text-white px-3 py-2 rounded hover:bg-red-600 text-sm font-bold">
+                                                    ✗ דחה
+                                                </button>
+                                            </div>
+                                        </div>
+                                    `;
+                                } else {
+                                    return `
+                                        <div class="p-3 rounded-lg bg-red-50 border-2 border-red-300">
+                                            <div class="flex justify-between items-center mb-1">
+                                                <span class="font-semibold text-red-900">${name}</span>
+                                                <span class="text-red-700 font-bold">✗ לא תקין</span>
+                                            </div>
+                                            <div class="text-xs text-red-700">${verification.reason}</div>
+                                        </div>
+                                    `;
+                                }
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            document.getElementById('resultsContainer').innerHTML = resultsHTML;
+        }
+        
+        async function manualVerify(name, isValid) {
+            try {
+                await fetch(`${API_URL}/api/verify-name-manual`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, isValid })
+                });
+                
+                // Recalculate and refresh results
+                const response = await fetch(`${API_URL}/api/results`);
+                const results = await response.json();
+                renderResults(results);
+                
+                alert(isValid ? `✓ ${name} אושר!` : `✗ ${name} נדחה!`);
+            } catch (e) {
+                alert('שגיאה באישור ידני');
+                console.error(e);
+            }
+        }
+
+        function showMonitorView() {
+            document.getElementById('setupView').classList.add('hidden');
+            document.getElementById('monitorView').classList.remove('hidden');
+            document.getElementById('resultsView').classList.add('hidden');
+            renderActiveGroups();
+        }
+
+        function showResultsView() {
+            document.getElementById('setupView').classList.add('hidden');
+            document.getElementById('monitorView').classList.add('hidden');
+            document.getElementById('resultsView').classList.remove('hidden');
+            const loading = document.querySelector('.fixed.inset-0');
+            if (loading) loading.remove();
+        }
+
+        function resetToSetup() {
+            if (confirm('למחוק תוצאות?')) {
+                document.getElementById('setupView').classList.remove('hidden');
+                document.getElementById('monitorView').classList.add('hidden');
+                document.getElementById('resultsView').classList.add('hidden');
+                activeSessions = [];
+                Object.values(timerIntervals).forEach(i => clearInterval(i));
+                timerIntervals = {};
+            }
+        }
+
+        async function fullReset() {
+            if (confirm('⚠️ למחוק הכל?')) {
+                await fetch(`${API_URL}/api/reset`, { method: 'POST' });
+            }
+        }
+    </script>
+</body>
+</html>

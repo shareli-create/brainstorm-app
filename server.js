@@ -31,7 +31,7 @@ let manualVerifications = {};
 // Letter pairs for the task
 const letterPairs = ['צן', 'תד', 'קכ', 'עג', 'יח', 'לט', 'מצ', 'רס', 'סו', 'טר'];
 
-// Verify celebrity names using Wikipedia API - FIXED
+// Verify celebrity names using Wikipedia API - FIXED with timeout and manual review
 async function verifyCelebrity(name, letterPair, retries = 3) {
   try {
     const validPairs = ['צן', 'תד', 'קכ', 'עג', 'יח', 'לט', 'מצ', 'רס', 'סו', 'טר'];
@@ -70,6 +70,24 @@ async function verifyCelebrity(name, letterPair, retries = 3) {
         description: null
       };
     }
+
+    // Timeout wrapper for fetch
+    const fetchWithTimeout = async (url, options, timeout = 5000) => {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeout);
+      
+      try {
+        const response = await fetch(url, {
+          ...options,
+          signal: controller.signal
+        });
+        clearTimeout(id);
+        return response;
+      } catch (error) {
+        clearTimeout(id);
+        throw error;
+      }
+    };
 
     // Create variations for foreign names (different transliterations)
     const createNameVariations = (first, last) => {
@@ -146,12 +164,12 @@ async function verifyCelebrity(name, letterPair, retries = 3) {
       const searchUrl = `https://he.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*&srlimit=5`;
       
       try {
-        const response = await fetch(searchUrl, {
+        const response = await fetchWithTimeout(searchUrl, {
           headers: {
             'User-Agent': 'BrainstormApp/1.0 (Educational; Node.js)',
             'Accept': 'application/json'
           }
-        });
+        }, 5000);
         
         if (!response.ok) {
           console.error(`Wikipedia API error: ${response.status}`);
@@ -229,6 +247,10 @@ async function verifyCelebrity(name, letterPair, retries = 3) {
           }
         }
       } catch (fetchError) {
+        if (fetchError.name === 'AbortError') {
+          console.error(`Timeout for query "${query}"`);
+          continue;
+        }
         console.error(`Search failed for query "${query}":`, fetchError.message || fetchError);
         continue;
       }
@@ -239,18 +261,18 @@ async function verifyCelebrity(name, letterPair, retries = 3) {
     const partialSearchUrl = `https://he.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(name)}&format=json&origin=*&srlimit=10`;
     
     try {
-      const response = await fetch(partialSearchUrl, {
+      const response = await fetchWithTimeout(partialSearchUrl, {
         headers: {
           'User-Agent': 'BrainstormApp/1.0 (Educational; Node.js)',
           'Accept': 'application/json'
         }
-      });
+      }, 5000);
       
       if (!response.ok) {
         console.error(`Wikipedia partial search error: ${response.status}`);
         return { 
-          valid: false, 
-          reason: 'לא נמצא בוויקיפדיה כאדם מפורסם',
+          valid: 'needs_manual_review', 
+          reason: 'דורש בדיקה ידנית - לא ניתן לאמת בוויקיפדיה',
           match: null,
           description: null
         };
@@ -274,21 +296,30 @@ async function verifyCelebrity(name, letterPair, retries = 3) {
           
           if ((hasFirstName || hasLastName) && hasPersonIndicator) {
             return {
-              valid: 'manual_review',
+              valid: 'needs_manual_review',
               match: title,
-              reason: 'דורש בדיקת מרצה',
+              reason: 'דורש בדיקה ידנית - התאמה חלקית',
               description: `נמצאה התאמה חלקית: "${title}". ${snippet.substring(0, 150)}`
             };
           }
         }
       }
     } catch (e) {
+      if (e.name === 'AbortError') {
+        console.error('Partial search timeout');
+        return { 
+          valid: 'needs_manual_review', 
+          reason: 'דורש בדיקה ידנית - זמן חיפוש פג',
+          match: null,
+          description: null
+        };
+      }
       console.error('Partial search error:', e.message || e);
     }
     
     return { 
-      valid: false, 
-      reason: 'לא נמצא בוויקיפדיה כאדם מפורסם',
+      valid: 'needs_manual_review', 
+      reason: 'דורש בדיקה ידנית - לא נמצא בוויקיפדיה',
       match: null,
       description: null
     };
@@ -305,16 +336,16 @@ async function verifyCelebrity(name, letterPair, retries = 3) {
     // If it's a network/JSON error, return a more specific message
     if (error.message && error.message.includes('invalid json')) {
       return { 
-        valid: false, 
-        reason: 'שגיאת חיבור לוויקיפדיה - נסה שוב מאוחר יותר',
+        valid: 'needs_manual_review', 
+        reason: 'דורש בדיקה ידנית - שגיאת חיבור לוויקיפדיה',
         match: null,
         description: null
       };
     }
     
     return { 
-      valid: false, 
-      reason: 'שגיאה בבדיקה',
+      valid: 'needs_manual_review', 
+      reason: 'דורש בדיקה ידנית - שגיאה בבדיקה',
       match: null,
       description: null
     };
@@ -358,8 +389,8 @@ async function verifyCelebritiesForPair(names, letterPair) {
       } catch (error) {
         console.error(`Error verifying ${name}:`, error);
         results[name] = {
-          valid: false,
-          reason: 'שגיאה בבדיקה',
+          valid: 'needs_manual_review',
+          reason: 'דורש בדיקה ידנית - שגיאה בבדיקה',
           match: null,
           description: null
         };
